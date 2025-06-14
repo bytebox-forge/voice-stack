@@ -203,6 +203,7 @@ volumes:
   redis_data:
   synapse_data:
   media_store:
+  coturn_data:
 ```
 
 ## Environment Variables to Set:

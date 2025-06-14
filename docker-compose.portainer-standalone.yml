@@ -87,7 +87,6 @@ services:
         fi &&
         exec python -m synapse.app.homeserver -c /data/homeserver.yaml
       "
-
   coturn:
     image: coturn/coturn:latest
     container_name: voice-stack-coturn
@@ -103,33 +102,39 @@ services:
       TURN_PASSWORD: ${TURN_PASSWORD:-turn_password}
       SERVER_NAME: ${SERVER_NAME:-matrix.byte-box.org}
       EXTERNAL_IP: ${EXTERNAL_IP:-auto-detect}
+    volumes:
+      - coturn_data:/var/lib/coturn
     networks:
       - core-network
     restart: unless-stopped
+    user: "0:0"
     command: >
       sh -c "
-        echo 'listening-port=3478' > /etc/coturn/turnserver.conf &&
-        echo 'tls-listening-port=5349' >> /etc/coturn/turnserver.conf &&
-        echo 'listening-ip=0.0.0.0' >> /etc/coturn/turnserver.conf &&
+        mkdir -p /tmp/coturn &&
+        echo 'listening-port=3478' > /tmp/coturn/turnserver.conf &&
+        echo 'tls-listening-port=5349' >> /tmp/coturn/turnserver.conf &&
+        echo 'listening-ip=0.0.0.0' >> /tmp/coturn/turnserver.conf &&
         if [ \"$${EXTERNAL_IP}\" != \"auto-detect\" ]; then
-          echo 'external-ip=$${EXTERNAL_IP}' >> /etc/coturn/turnserver.conf
+          echo 'external-ip=$${EXTERNAL_IP}' >> /tmp/coturn/turnserver.conf
         fi &&
-        echo 'realm=turn.$${SERVER_NAME}' >> /etc/coturn/turnserver.conf &&
-        echo 'server-name=turn.$${SERVER_NAME}' >> /etc/coturn/turnserver.conf &&
-        echo 'fingerprint' >> /etc/coturn/turnserver.conf &&
-        echo 'lt-cred-mech' >> /etc/coturn/turnserver.conf &&
-        echo 'user=$${TURN_USERNAME}:$${TURN_PASSWORD}' >> /etc/coturn/turnserver.conf &&
-        echo 'use-auth-secret' >> /etc/coturn/turnserver.conf &&
-        echo 'static-auth-secret=$${TURN_SECRET}' >> /etc/coturn/turnserver.conf &&
-        echo 'total-quota=100' >> /etc/coturn/turnserver.conf &&
-        echo 'user-quota=12' >> /etc/coturn/turnserver.conf &&
-        echo 'max-bps=1000000' >> /etc/coturn/turnserver.conf &&
-        echo 'verbose' >> /etc/coturn/turnserver.conf &&
-        echo 'no-multicast-peers' >> /etc/coturn/turnserver.conf &&
-        echo 'no-loopback-peers' >> /etc/coturn/turnserver.conf &&
-        turnserver -c /etc/coturn/turnserver.conf
+        echo 'realm=turn.$${SERVER_NAME}' >> /tmp/coturn/turnserver.conf &&
+        echo 'server-name=turn.$${SERVER_NAME}' >> /tmp/coturn/turnserver.conf &&
+        echo 'fingerprint' >> /tmp/coturn/turnserver.conf &&
+        echo 'lt-cred-mech' >> /tmp/coturn/turnserver.conf &&
+        echo 'user=$${TURN_USERNAME}:$${TURN_PASSWORD}' >> /tmp/coturn/turnserver.conf &&
+        echo 'use-auth-secret' >> /tmp/coturn/turnserver.conf &&
+        echo 'static-auth-secret=$${TURN_SECRET}' >> /tmp/coturn/turnserver.conf &&
+        echo 'total-quota=100' >> /tmp/coturn/turnserver.conf &&
+        echo 'user-quota=12' >> /tmp/coturn/turnserver.conf &&
+        echo 'max-bps=1000000' >> /tmp/coturn/turnserver.conf &&
+        echo 'verbose' >> /tmp/coturn/turnserver.conf &&
+        echo 'no-multicast-peers' >> /tmp/coturn/turnserver.conf &&
+        echo 'no-loopback-peers' >> /tmp/coturn/turnserver.conf &&
+        echo 'pidfile=/tmp/coturn/turnserver.pid' >> /tmp/coturn/turnserver.conf &&
+        echo 'userdb=/tmp/coturn/turnuserdb.conf' >> /tmp/coturn/turnserver.conf &&
+        chmod 644 /tmp/coturn/turnserver.conf &&
+        turnserver -c /tmp/coturn/turnserver.conf
       "
-
   element-web:
     image: vectorim/element-web:latest
     container_name: voice-stack-element
@@ -140,9 +145,11 @@ services:
     networks:
       - core-network
     restart: unless-stopped
+    user: "0:0"
     command: >
       sh -c "
-        cat > /app/config.json << EOF
+        mkdir -p /tmp/element &&
+        cat > /tmp/element/config.json << EOF
         {
           \"default_server_config\": {
             \"m.homeserver\": {
@@ -174,6 +181,8 @@ services:
           }
         }
         EOF &&
+        cp /tmp/element/config.json /app/config.json &&
+        chmod 644 /app/config.json &&
         /docker-entrypoint.sh
       "
 
@@ -186,3 +195,4 @@ volumes:
   redis_data:
   synapse_data:
   media_store:
+  coturn_data:
