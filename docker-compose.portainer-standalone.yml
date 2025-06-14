@@ -105,6 +105,7 @@ services:
     user: "0:0"
     command: >
       sh -c "
+        echo 'Starting Coturn configuration...' &&
         mkdir -p /tmp/coturn &&
         echo 'listening-port=3478' > /tmp/coturn/turnserver.conf &&
         echo 'tls-listening-port=5349' >> /tmp/coturn/turnserver.conf &&
@@ -123,11 +124,16 @@ services:
         echo 'user-quota=12' >> /tmp/coturn/turnserver.conf &&
         echo 'max-bps=1000000' >> /tmp/coturn/turnserver.conf &&
         echo 'verbose' >> /tmp/coturn/turnserver.conf &&
+        echo 'log-file=stdout' >> /tmp/coturn/turnserver.conf &&
+        echo 'simple-log' >> /tmp/coturn/turnserver.conf &&
         echo 'no-multicast-peers' >> /tmp/coturn/turnserver.conf &&
         echo 'no-loopback-peers' >> /tmp/coturn/turnserver.conf &&
         echo 'pidfile=/tmp/coturn/turnserver.pid' >> /tmp/coturn/turnserver.conf &&
         echo 'userdb=/tmp/coturn/turnuserdb.conf' >> /tmp/coturn/turnserver.conf &&
         chmod 644 /tmp/coturn/turnserver.conf &&
+        echo 'Configuration file created:' &&
+        cat /tmp/coturn/turnserver.conf &&
+        echo 'Starting Coturn server...' &&
         turnserver -c /tmp/coturn/turnserver.conf
       "
   element-web:
@@ -141,9 +147,17 @@ services:
       - core-network
     restart: unless-stopped
     user: "0:0"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     command: >
       sh -c "
+        echo 'Starting Element Web configuration...' &&
         mkdir -p /tmp/element &&
+        echo 'Creating config.json...' &&
         cat > /tmp/element/config.json << EOF
         {
           \"default_server_config\": {
@@ -176,8 +190,13 @@ services:
           }
         }
         EOF &&
+        echo 'Config file created successfully:' &&
+        cat /tmp/element/config.json &&
+        echo 'Copying config to app directory...' &&
         cp /tmp/element/config.json /app/config.json &&
         chmod 644 /app/config.json &&
+        echo 'Element Web starting...' &&
+        echo 'Server will be available on port 80' &&
         /docker-entrypoint.sh
       "
 
