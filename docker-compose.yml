@@ -87,8 +87,9 @@ services:
     restart: unless-stopped
 
 networks:
-  core-network:
-    external: true
+  voice-stack-network:
+    name: ${NETWORK_NAME:-voice-stack-network}
+    external: ${NETWORK_EXTERNAL:-false}
 
 volumes:
   postgres_data:

@@ -45,6 +45,8 @@ Click **Deploy the Stack**
 - **Element Web**: `http://your-server-ip:8080`
 - **Synapse API**: `http://your-server-ip:8008`
 
+> **💡 Reverse Proxy Integration**: If you use Nginx Proxy Manager or another reverse proxy, see [`REVERSE-PROXY.md`](REVERSE-PROXY.md) for custom domain setup (e.g., `https://chat.your-domain.com`)
+
 ### 5. Register Users with Token
 
 When someone wants to create an account:

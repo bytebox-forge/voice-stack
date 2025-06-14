@@ -23,7 +23,21 @@ A complete Docker setup for a Matrix homeserver with voice and video calling cap
 
 ## Quick Start
 
-### Using Portainer
+### Deployment Options
+
+1. **Portainer Standalone** (Recommended): [`PORTAINER-SIMPLE.md`](PORTAINER-SIMPLE.md)
+2. **Reverse Proxy Integration**: [`REVERSE-PROXY.md`](REVERSE-PROXY.md)  
+3. **Manual Docker Compose**: Instructions below
+
+### Using Portainer (Recommended)
+
+**For the simplest deployment**, use the standalone version:
+
+1. Use `docker-compose.portainer-standalone.yml` in Portainer
+2. Set environment variables (see [`PORTAINER-SIMPLE.md`](PORTAINER-SIMPLE.md))
+3. Deploy with optional registration token support
+
+### Using Portainer with Existing Docker Compose
 
 1. Create a new stack in Portainer
 2. Copy the contents of `docker-compose.yml` into the stack editor
