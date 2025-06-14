@@ -235,6 +235,7 @@ For easy deployment and automatic updates using Portainer:
    - Go to Portainer → Stacks → Add stack
    - Choose "Repository" tab
    - Repository URL: `https://github.com/anykolaiszyn/voice-stack.git`
+   - Repository reference: `main`
    - Compose path: `docker-compose.portainer.yml`
 
 2. **Configure Environment Variables** (same as above)

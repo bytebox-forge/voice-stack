@@ -32,7 +32,7 @@ echo 1. Create Stack in Portainer:
 echo    - Go to Stacks → Add stack
 echo    - Choose 'Repository' tab
 echo    - Repository URL: https://github.com/%GITHUB_REPO%.git
-echo    - Reference: refs/heads/main
+echo    - Reference: main
 echo    - Compose path: docker-compose.portainer.yml
 echo.
 echo 2. Set Environment Variables:

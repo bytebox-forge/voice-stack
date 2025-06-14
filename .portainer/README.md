@@ -9,9 +9,11 @@ Use these settings when creating a stack from Git repository in Portainer:
 ### Repository Configuration
 ```
 Repository URL: https://github.com/anykolaiszyn/voice-stack.git
-Repository reference: refs/heads/main
+Repository reference: main
 Compose path: docker-compose.portainer.yml
 ```
+
+**Important:** Use `main` (not `refs/heads/main`) for the repository reference.
 
 ### Environment Variables Template
 Copy the required environment variables from `.env.example` into Portainer's environment variables section.

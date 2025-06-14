@@ -105,9 +105,11 @@ Portainer supports deploying stacks directly from Git repositories, which provid
 **Repository Configuration:**
 ```
 Repository URL: https://github.com/anykolaiszyn/voice-stack.git
-Repository reference: refs/heads/main
+Repository reference: main
 Compose path: docker-compose.portainer.yml
 ```
+
+**Important:** Use `main` (not `refs/heads/main`) for the repository reference.
 
 **Authentication (if needed):**
 - For public repos: Leave authentication empty
@@ -231,3 +233,51 @@ voice-stack/
 2. Verify repository access: Try cloning manually
 3. Test webhook: Use GitHub's webhook testing feature
 4. Check environment variables: Ensure all required variables are set
+
+### Common Git Repository Errors
+
+#### "Reference not found" Error
+**Problem:** Unable to clone git repository: reference not found
+
+**Solutions:**
+1. **Use correct branch name:** Use `main` instead of `refs/heads/main`
+2. **Check repository accessibility:** Ensure the repository is public or credentials are correct
+3. **Verify branch exists:** Confirm the branch name matches exactly
+
+**Correct Configuration:**
+```
+Repository URL: https://github.com/anykolaiszyn/voice-stack.git
+Repository reference: main
+Compose path: docker-compose.portainer.yml
+```
+
+#### "File not found" Error
+**Problem:** docker-compose.portainer.yml not found
+
+**Solutions:**
+1. **Check compose path:** Ensure it's exactly `docker-compose.portainer.yml`
+2. **Verify file exists:** Check that the file is in the repository root
+3. **Case sensitivity:** Ensure exact filename match
+
+#### Authentication Issues
+**Problem:** Repository access denied
+
+**Solutions:**
+1. **Public repository:** Leave authentication fields empty
+2. **Private repository:** Use GitHub Personal Access Token
+3. **Token permissions:** Ensure token has repository read access
+
+#### Network/Connectivity Issues
+**Problem:** Connection timeout or network errors
+
+**Solutions:**
+1. **Check Portainer network:** Ensure Portainer can reach GitHub
+2. **Firewall settings:** Allow outbound HTTPS connections
+3. **DNS resolution:** Verify GitHub.com resolves correctly
+
+**Test connectivity from Portainer host:**
+```bash
+# Test from Portainer server
+curl -I https://github.com/anykolaiszyn/voice-stack.git
+nslookup github.com
+```
