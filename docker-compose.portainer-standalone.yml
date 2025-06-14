@@ -1,20 +1,3 @@
-# Manual Portainer Deployment - Copy & Paste Method
-
-If Git integration is not working, you can deploy manually by copying and pasting the Docker Compose content.
-
-## Steps:
-
-1. **Go to Portainer** → Stacks → Add stack
-2. **Choose "Web editor" tab** (not Repository)
-3. **Copy the content below** and paste it into the editor
-4. **Set environment variables** (same as Git method)
-5. **Deploy the stack**
-
-## Docker Compose Content for Portainer (Standalone Version)
-
-**Use this version - it creates all configuration files automatically:**
-
-```yaml
 version: '3.8'
 
 # Voice Stack for Portainer - Self-Contained Version
@@ -203,26 +186,3 @@ volumes:
   redis_data:
   synapse_data:
   media_store:
-```
-
-## Environment Variables to Set:
-
-**Required:**
-```
-SERVER_NAME=matrix.byte-box.org
-TURN_SECRET=your-random-secret-here
-REGISTRATION_SECRET=another-random-secret-here
-```
-
-**Optional:**
-```
-POSTGRES_PASSWORD=secure_db_password
-TURN_USERNAME=turn_user
-TURN_PASSWORD=secure_turn_password
-TURN_PORT=3478
-TURNS_PORT=5349
-EXTERNAL_IP=auto-detect
-```
-
-## Note:
-This method bypasses Git integration issues but you'll need to manually update the stack when changes are made to the repository.
