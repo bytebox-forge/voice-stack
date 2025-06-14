@@ -51,7 +51,8 @@ services:
       - media_store:/media_store
     depends_on:
       - postgres
-      - redis    networks:
+      - redis
+    networks:
       - core-network
     ports:
       - "${SYNAPSE_PORT:-8008}:8008"
