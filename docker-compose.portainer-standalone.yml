@@ -54,6 +54,8 @@ services:
       - redis
     networks:
       - core-network
+    ports:
+      - "8008:8008"
     restart: unless-stopped
     entrypoint: >
       sh -c "
@@ -145,6 +147,8 @@ services:
       - synapse
     networks:
       - core-network
+    ports:
+      - "80:80"
     restart: unless-stopped
     user: "0:0"
     healthcheck:
