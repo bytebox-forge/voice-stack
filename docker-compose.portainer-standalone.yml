@@ -53,9 +53,8 @@ services:
       - postgres
       - redis
     networks:
-      - core-network
-    ports:
-      - "8008:8008"
+      - core-network    ports:
+      - "${SYNAPSE_PORT:-8008}:8008"
     restart: unless-stopped
     entrypoint: >
       sh -c "
@@ -146,9 +145,8 @@ services:
     depends_on:
       - synapse
     networks:
-      - core-network
-    ports:
-      - "80:80"
+      - core-network    ports:
+      - "${ELEMENT_PORT:-8080}:80"
     restart: unless-stopped
     user: "0:0"
     healthcheck:

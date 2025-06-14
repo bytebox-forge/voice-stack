@@ -91,12 +91,27 @@ A complete Docker setup for a Matrix homeserver with voice and video calling cap
 
 | Service | Internal Port | External Port | Description |
 |---------|---------------|---------------|-------------|
-| Synapse | 8008 | 8008 | Matrix homeserver HTTP |
+| Synapse | 8008 | 8008* | Matrix homeserver HTTP |
 | Synapse | 8448 | 8448 | Matrix federation |
-| Element | 80 | 8080 | Web client |
-| Coturn | 3478 | 3478 | TURN/STUN (UDP/TCP) |
-| Coturn | 5349 | 5349 | TURN/STUN over TLS |
+| Element | 80 | 8080* | Web client |
+| Coturn | 3478 | 3478* | TURN/STUN (UDP/TCP) |
+| Coturn | 5349 | 5349* | TURN/STUN over TLS |
 | Coturn | 49152-49172 | 49152-49172 | TURN relay ports (UDP) |
+
+*Configurable via environment variables: `SYNAPSE_PORT`, `ELEMENT_PORT`, `TURN_PORT`, `TURNS_PORT`
+
+**Default Access URLs:**
+- Element Web: `http://your-server:8080`
+- Synapse API: `http://your-server:8008`
+
+**Port Conflict Resolution:**
+If you encounter port conflicts, customize them in your `.env` file:
+```bash
+ELEMENT_PORT=8080    # Change if port 80 is in use
+SYNAPSE_PORT=8008    # Change if port 8008 is in use  
+TURN_PORT=3478       # Change if port 3478 is in use
+TURNS_PORT=5349      # Change if port 5349 is in use
+```
 
 ## DNS Configuration
 
