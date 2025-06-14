@@ -37,13 +37,13 @@ A complete Docker setup for a Matrix homeserver with voice and video calling cap
 
 ### Using Docker Compose
 
-1. Clone or download this repository
-2. Copy `.env.example` to `.env` and edit the values:
+1. **Clone the repository:**
    ```bash
-   cp .env.example .env
-   # Edit .env with your preferred editor
+   git clone https://github.com/anykolaiszyn/voice-stack.git
+   cd voice-stack
    ```
-3. Run the setup script (optional):
+
+2. **Run the setup script (REQUIRED - first time only):**
    ```bash
    # Linux/Mac
    chmod +x setup.sh
@@ -52,10 +52,25 @@ A complete Docker setup for a Matrix homeserver with voice and video calling cap
    # Windows
    setup.bat
    ```
-4. Start the services:
+   
+   **What the setup script does:**
+   - Creates `.env` file from template
+   - Creates necessary directories
+   - Generates cryptographic keys
+   - Updates configuration files
+   
+3. **Edit the `.env` file** with your actual configuration:
+   ```bash
+   # Edit .env with your preferred editor
+   nano .env
+   ```
+
+4. **Start the services:**
    ```bash
    docker-compose up -d
    ```
+
+**Important:** Run the setup script only once from the project root directory (`voice-stack/`). It's not needed for Portainer Git deployment.
 
 ## Configuration
 
