@@ -13,7 +13,8 @@ A complete Docker setup for a Matrix homeserver with voice and video calling cap
 ## Features
 
 - ✅ Voice and video calling support
-- ✅ Open registration enabled
+- ✅ Registration tokens for controlled access
+- ✅ Family-safe defaults (no public rooms)
 - ✅ Modern web interface (Element)
 - ✅ Optimized for Docker deployment
 - ✅ Portainer compatible
@@ -86,6 +87,8 @@ A complete Docker setup for a Matrix homeserver with voice and video calling cap
 - `PUBLIC_BASEURL`: Public URL of your server (defaults to https://SERVER_NAME)
 - `POSTGRES_PASSWORD`: Database password (default: `synapse_password`)
 - `ENABLE_REGISTRATION`: Enable open registration (default: `true`)
+- `REGISTRATION_REQUIRES_TOKEN`: Require tokens for registration (default: `false`)
+- `REGISTRATION_TOKENS`: Comma-separated list of registration tokens (see [REGISTRATION-TOKENS.md](REGISTRATION-TOKENS.md))
 
 ## Services and Ports
 

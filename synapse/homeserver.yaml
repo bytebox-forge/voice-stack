@@ -61,9 +61,14 @@ turn_allow_guests: true
 
 ## Registration ##
 
-enable_registration: true
+# Enable registration with optional token requirement
+enable_registration: ${ENABLE_REGISTRATION:-true}
 enable_registration_without_verification: true
-registration_shared_secret: "your_registration_secret_here"
+registration_requires_token: ${REGISTRATION_REQUIRES_TOKEN:-false}
+registration_shared_secret: "${REGISTRATION_SECRET:-your_registration_secret_here}"
+
+# Allow registration tokens to be created and managed
+enable_registration_token_3pid_bypass: false
 
 ## API Configuration ##
 

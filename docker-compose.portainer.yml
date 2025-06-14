@@ -36,7 +36,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-
   synapse:
     image: matrixdotorg/synapse:latest
     container_name: voice-stack-synapse
@@ -47,6 +46,15 @@ services:
       SYNAPSE_SERVER_NAME: ${SERVER_NAME:-matrix.byte-box.org}
       SYNAPSE_REPORT_STATS: "no"
       SYNAPSE_CONFIG_PATH: /data/homeserver.yaml
+      # Registration settings
+      ENABLE_REGISTRATION: ${ENABLE_REGISTRATION:-true}
+      REGISTRATION_SECRET: ${REGISTRATION_SECRET:-change_me}
+      REGISTRATION_REQUIRES_TOKEN: ${REGISTRATION_REQUIRES_TOKEN:-false}
+      REGISTRATION_TOKENS: ${REGISTRATION_TOKENS:-}
+      # Server configuration
+      SERVER_NAME: ${SERVER_NAME:-matrix.byte-box.org}
+      PUBLIC_BASEURL: ${PUBLIC_BASEURL:-https://matrix.byte-box.org}
+    entrypoint: ["/data/entrypoint.sh"]
     depends_on:
       - postgres
       - redis

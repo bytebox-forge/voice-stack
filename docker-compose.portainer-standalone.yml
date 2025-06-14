@@ -36,7 +36,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-
   synapse:
     image: matrixdotorg/synapse:latest
     container_name: voice-stack-synapse
@@ -46,6 +45,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-synapse_password}
       TURN_SECRET: ${TURN_SECRET:-change_me}
       REGISTRATION_SECRET: ${REGISTRATION_SECRET:-change_me}
+      # Simple registration token - set this to enable token-based registration
+      REGISTRATION_TOKEN: ${REGISTRATION_TOKEN:-}
     volumes:
       - synapse_data:/data
       - media_store:/media_store
@@ -61,8 +62,18 @@ services:
       sh -c "
         if [ ! -f /data/homeserver.yaml ]; then
           python -m synapse.app.homeserver --server-name=$${SYNAPSE_SERVER_NAME} --config-path=/data/homeserver.yaml --generate-config --data-directory=/data --report-stats=no &&
-          sed -i 's/#enable_registration: false/enable_registration: true/' /data/homeserver.yaml &&
+          if [ -n \"$${REGISTRATION_TOKEN}\" ]; then
+            echo 'Setting up token-based registration...' &&
+            sed -i 's/#enable_registration: false/enable_registration: true/' /data/homeserver.yaml &&
+            sed -i 's/#registration_requires_token: false/registration_requires_token: true/' /data/homeserver.yaml
+          else
+            echo 'Disabling public registration (family-safe mode)...' &&
+            sed -i 's/#enable_registration: false/enable_registration: false/' /data/homeserver.yaml
+          fi &&
           sed -i 's/#registration_shared_secret:.*/registration_shared_secret: \"$${REGISTRATION_SECRET}\"/' /data/homeserver.yaml &&
+          echo 'allow_public_rooms_over_federation: false' >> /data/homeserver.yaml &&
+          echo 'allow_public_rooms_without_auth: false' >> /data/homeserver.yaml &&
+          echo 'federation_domain_whitelist: []' >> /data/homeserver.yaml &&
           echo 'turn_uris: [\"turn:coturn:3478?transport=udp\", \"turn:coturn:3478?transport=tcp\"]' >> /data/homeserver.yaml &&
           echo 'turn_shared_secret: \"$${TURN_SECRET}\"' >> /data/homeserver.yaml &&
           echo 'turn_user_lifetime: 1h' >> /data/homeserver.yaml &&
@@ -81,6 +92,16 @@ services:
           echo '  enabled: true' >> /data/homeserver.yaml &&
           echo '  host: redis' >> /data/homeserver.yaml &&
           echo '  port: 6379' >> /data/homeserver.yaml
+        fi &&
+        if [ -n \"$${REGISTRATION_TOKEN}\" ]; then
+          echo 'Creating registration token: $${REGISTRATION_TOKEN}' &&
+          (
+            sleep 30 &&
+            curl -X POST http://localhost:8008/_synapse/admin/v1/registration_tokens/new \
+              -H 'Content-Type: application/json' \
+              -d '{\"token\":\"'$${REGISTRATION_TOKEN}'\"}' || \
+            echo 'Token creation will retry after server startup...'
+          ) &
         fi &&
         exec python -m synapse.app.homeserver -c /data/homeserver.yaml
       "

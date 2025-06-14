@@ -26,8 +26,7 @@ services:
 
   synapse:
     image: matrixdotorg/synapse:latest
-    container_name: voice-stack-synapse
-    # Expose ports for direct access if needed (optional with Cloudflare)
+    container_name: voice-stack-synapse    # Expose ports for direct access if needed (optional with Cloudflare)
     # ports:
     #   - "8008:8008"
     #   - "8448:8448"
@@ -38,6 +37,15 @@ services:
       SYNAPSE_SERVER_NAME: ${SERVER_NAME:-matrix.byte-box.org}
       SYNAPSE_REPORT_STATS: "no"
       SYNAPSE_CONFIG_PATH: /data/homeserver.yaml
+      # Registration settings
+      ENABLE_REGISTRATION: ${ENABLE_REGISTRATION:-true}
+      REGISTRATION_SECRET: ${REGISTRATION_SECRET:-change_me}
+      REGISTRATION_REQUIRES_TOKEN: ${REGISTRATION_REQUIRES_TOKEN:-false}
+      REGISTRATION_TOKENS: ${REGISTRATION_TOKENS:-}
+      # Server configuration
+      SERVER_NAME: ${SERVER_NAME:-matrix.byte-box.org}
+      PUBLIC_BASEURL: ${PUBLIC_BASEURL:-https://matrix.byte-box.org}
+    entrypoint: ["/data/entrypoint.sh"]
     depends_on:
       - postgres
       - redis
