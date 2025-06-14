@@ -53,17 +53,11 @@ services:
       - postgres
       - redis
     networks:
-      - core-network
-    restart: unless-stopped
+      - core-network    restart: unless-stopped
     entrypoint: >
       sh -c "
         if [ ! -f /data/homeserver.yaml ]; then
-          python -m synapse.app.homeserver \
-            --server-name=$${SYNAPSE_SERVER_NAME} \
-            --config-path=/data/homeserver.yaml \
-            --generate-config \
-            --data-directory=/data \
-            --report-stats=no &&
+          python -m synapse.app.homeserver --server-name=$${SYNAPSE_SERVER_NAME} --config-path=/data/homeserver.yaml --generate-config --data-directory=/data --report-stats=no &&
           sed -i 's/#enable_registration: false/enable_registration: true/' /data/homeserver.yaml &&
           sed -i 's/#registration_shared_secret:.*/registration_shared_secret: \"$${REGISTRATION_SECRET}\"/' /data/homeserver.yaml &&
           echo 'turn_uris: [\"turn:coturn:3478?transport=udp\", \"turn:coturn:3478?transport=tcp\"]' >> /data/homeserver.yaml &&
