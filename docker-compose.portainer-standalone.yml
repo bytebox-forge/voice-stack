@@ -49,12 +49,12 @@ services:
       REGISTRATION_TOKEN: ${REGISTRATION_TOKEN:-}
     volumes:
       - synapse_data:/data
-      - media_store:/media_store
-    depends_on:
+      - media_store:/media_store    depends_on:
       - postgres
       - redis
     networks:
       - voice-stack-network
+      - proxy-bridge
     ports:
       - "${SYNAPSE_PORT:-8008}:8008"
     restart: unless-stopped
@@ -155,8 +155,8 @@ services:
         echo 'userdb=/tmp/coturn/turnuserdb.conf' >> /tmp/coturn/turnserver.conf &&
         chmod 644 /tmp/coturn/turnserver.conf &&
         echo 'Configuration file created:' &&
-        cat /tmp/coturn/turnserver.conf &&
-        echo 'Starting Coturn server...' &&        turnserver -c /tmp/coturn/turnserver.conf
+        cat /tmp/coturn/turnserver.conf &&        echo 'Starting Coturn server...' &&
+        turnserver -c /tmp/coturn/turnserver.conf
       "
   element-web:
     image: vectorim/element-web:latest
@@ -167,6 +167,7 @@ services:
       - synapse
     networks:
       - voice-stack-network
+      - proxy-bridge
     ports:
       - "${ELEMENT_PORT:-8080}:80"
     restart: unless-stopped
@@ -183,6 +184,9 @@ networks:
     ipam:
       config:
         - subnet: 172.20.0.0/16
+  proxy-bridge:
+    external: true
+    name: ${ADDITIONAL_NETWORK:-proxy-bridge}
 
 volumes:
   postgres_data:
