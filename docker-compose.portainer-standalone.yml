@@ -135,8 +135,7 @@ services:
         chmod 644 /tmp/coturn/turnserver.conf &&
         echo 'Configuration file created:' &&
         cat /tmp/coturn/turnserver.conf &&
-        echo 'Starting Coturn server...' &&
-        turnserver -c /tmp/coturn/turnserver.conf
+        echo 'Starting Coturn server...' &&        turnserver -c /tmp/coturn/turnserver.conf
       "
   element-web:
     image: vectorim/element-web:latest
@@ -150,21 +149,12 @@ services:
     ports:
       - "${ELEMENT_PORT:-8080}:80"
     restart: unless-stopped
-    user: "0:0"
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
-    entrypoint: >
-      sh -c "
-        echo 'Starting Element Web...' &&
-        mkdir -p /app &&
-        echo '{\"default_server_config\":{\"m.homeserver\":{\"base_url\":\"https://${SERVER_NAME}\",\"server_name\":\"${SERVER_NAME}\"}},\"default_server_name\":\"${SERVER_NAME}\",\"brand\":\"Voice Stack Element\"}' > /app/config.json &&
-        echo 'Config created, starting nginx...' &&
-        exec /docker-entrypoint.sh
-      "
 
 networks:
   voice-stack-network:
