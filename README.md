@@ -211,3 +211,25 @@ For issues related to:
 ## License
 
 This configuration setup is provided as-is for educational and deployment purposes.
+
+### Portainer Git Integration
+
+For easy deployment and automatic updates using Portainer:
+
+1. **Create Stack from Repository:**
+   - Go to Portainer → Stacks → Add stack
+   - Choose "Repository" tab
+   - Repository URL: `https://github.com/anykolaiszyn/voice-stack.git`
+   - Compose path: `docker-compose.portainer.yml`
+
+2. **Configure Environment Variables** (same as above)
+
+3. **Enable Auto-Updates:**
+   - Check "Enable auto-update"
+   - Set polling interval: `5m`
+
+4. **Optional Webhook Integration:**
+   - Enable GitOps updates in Portainer
+   - Configure GitHub webhook for instant deployments
+
+See [PORTAINER.md](PORTAINER.md) for detailed Git integration setup.

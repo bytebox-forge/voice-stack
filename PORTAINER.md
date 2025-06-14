@@ -89,3 +89,145 @@ In Portainer, go to Containers → Select container → Logs
 # Use this command to generate random secrets
 openssl rand -base64 32
 ```
+
+## Git Repository Integration
+
+Portainer supports deploying stacks directly from Git repositories, which provides automatic updates and version control for your deployments.
+
+### Method 1: Git Repository Deployment (Recommended)
+
+#### Step 1: Setup Git Repository Connection
+1. Open Portainer web interface
+2. Go to **"Stacks"** → **"Add stack"**
+3. Choose **"Repository"** tab
+4. Configure repository settings:
+
+**Repository Configuration:**
+```
+Repository URL: https://github.com/anykolaiszyn/voice-stack.git
+Repository reference: refs/heads/main
+Compose path: docker-compose.portainer.yml
+```
+
+**Authentication (if needed):**
+- For public repos: Leave authentication empty
+- For private repos: Add your GitHub credentials or use Personal Access Token
+
+#### Step 2: Configure Auto-Updates
+```
+Auto-update settings:
+✓ Enable auto-update
+Polling interval: 5m
+Webhook: (optional) https://your-portainer-url/api/webhooks/your-webhook-id
+```
+
+#### Step 3: Environment Variables
+Set the same environment variables as listed in the Quick Deploy section:
+
+**Required:**
+```
+SERVER_NAME=matrix.byte-box.org
+TURN_SECRET=your-random-secret-key-here
+REGISTRATION_SECRET=another-random-secret-here
+```
+
+**Optional:**
+```
+POSTGRES_PASSWORD=secure_db_password
+TURN_USERNAME=turn_user
+TURN_PASSWORD=secure_turn_password
+TURN_PORT=3478
+TURNS_PORT=5349
+EXTERNAL_IP=your-server-ip
+```
+
+#### Step 4: Deploy from Repository
+1. Click **"Deploy the stack"**
+2. Portainer will clone the repository and deploy using `docker-compose.portainer.yml`
+3. Monitor deployment in the **"Stacks"** section
+
+### Method 2: Webhook-Based Auto-Updates
+
+For automatic updates when you push changes to GitHub:
+
+#### Setup GitHub Webhook
+1. In your GitHub repository, go to **Settings** → **Webhooks**
+2. Click **"Add webhook"**
+3. Configure:
+   ```
+   Payload URL: https://your-portainer-url/api/webhooks/your-webhook-id
+   Content type: application/json
+   Secret: your-webhook-secret
+   Events: Just the push event
+   ```
+
+#### Get Portainer Webhook URL
+1. In Portainer, go to your stack
+2. Click **"Editor"** tab
+3. Enable **"GitOps updates"**
+4. Copy the generated webhook URL
+
+### Benefits of Git Integration
+
+✅ **Version Control**: Track all changes to your configuration
+✅ **Automatic Updates**: Deploy changes by pushing to Git
+✅ **Rollback**: Easy rollback to previous versions
+✅ **Team Collaboration**: Multiple team members can contribute
+✅ **Audit Trail**: See who made what changes and when
+✅ **Backup**: Your configuration is safely stored in Git
+
+### Git Workflow Example
+
+```bash
+# 1. Make changes to your local repository
+git clone https://github.com/anykolaiszyn/voice-stack.git
+cd voice-stack
+
+# 2. Edit configuration files
+nano docker-compose.portainer.yml
+nano .env.example
+
+# 3. Commit and push changes
+git add .
+git commit -m "Update Matrix server configuration"
+git push origin main
+
+# 4. Portainer automatically detects changes and redeploys
+# (if auto-update is enabled or webhook is configured)
+```
+
+### Repository Structure for Portainer
+
+Your repository should be organized like this:
+```
+voice-stack/
+├── docker-compose.yml              # Standard deployment
+├── docker-compose.portainer.yml    # Portainer deployment
+├── docker-compose.cloudflare.yml   # Cloudflare tunnel deployment
+├── .env.example                    # Environment variables template
+├── synapse/
+│   ├── homeserver.yaml            # Matrix Synapse configuration
+│   └── log.config                 # Logging configuration
+├── coturn/
+│   └── turnserver.conf            # TURN server configuration
+├── element/
+│   └── config.json                # Element web client configuration
+├── README.md                      # Main documentation
+├── PORTAINER.md                   # This file
+└── DNS-SETUP.md                   # DNS and Cloudflare setup
+```
+
+### Troubleshooting Git Integration
+
+**Common Issues:**
+
+1. **Repository not found**: Check URL and authentication
+2. **File not found**: Verify `docker-compose.portainer.yml` exists in repo
+3. **Auto-update not working**: Check polling interval and webhook configuration
+4. **Permission denied**: Verify Git credentials or use Personal Access Token
+
+**Debug Steps:**
+1. Check Portainer logs: **Home** → **Events**
+2. Verify repository access: Try cloning manually
+3. Test webhook: Use GitHub's webhook testing feature
+4. Check environment variables: Ensure all required variables are set
