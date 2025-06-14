@@ -234,6 +234,40 @@ voice-stack/
 3. Test webhook: Use GitHub's webhook testing feature
 4. Check environment variables: Ensure all required variables are set
 
+## Alternative Deployment Methods
+
+If you're encountering Git reference issues with Portainer, try these alternatives:
+
+### Method A: Full Reference Path
+```
+Repository URL: https://github.com/anykolaiszyn/voice-stack.git
+Repository reference: refs/heads/main
+Compose path: docker-compose.portainer.yml
+```
+
+### Method B: Short Reference
+```
+Repository URL: https://github.com/anykolaiszyn/voice-stack.git
+Repository reference: main
+Compose path: docker-compose.portainer.yml
+```
+
+### Method C: Commit SHA (Most Reliable)
+```
+Repository URL: https://github.com/anykolaiszyn/voice-stack.git
+Repository reference: 8d25703922f08d330111c8f8788d56882ba89329
+Compose path: docker-compose.portainer.yml
+```
+
+### Method D: Manual Upload
+If Git integration continues to fail:
+
+1. **Download the repository as ZIP**
+2. **Extract locally**
+3. **Copy `docker-compose.portainer.yml` content**
+4. **Use "Web editor" tab in Portainer**
+5. **Paste the content directly**
+
 ### Common Git Repository Errors
 
 #### "Reference not found" Error
