@@ -15,7 +15,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - core-network
+      - voice-stack-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U synapse"]
@@ -29,7 +29,7 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - core-network
+      - voice-stack-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -51,9 +51,8 @@ services:
       - media_store:/media_store
     depends_on:
       - postgres
-      - redis
-    networks:
-      - core-network
+      - redis    networks:
+      - voice-stack-network
     ports:
       - "${SYNAPSE_PORT:-8008}:8008"
     restart: unless-stopped
@@ -102,7 +101,7 @@ services:
     volumes:
       - coturn_data:/var/lib/coturn
     networks:
-      - core-network
+      - voice-stack-network
     restart: unless-stopped
     user: "0:0"
     command: >
@@ -144,9 +143,9 @@ services:
     environment:
       SERVER_NAME: ${SERVER_NAME:-matrix.byte-box.org}
     depends_on:
-      - synapse
-    networks:
-      - core-network    ports:
+      - synapse    networks:
+      - voice-stack-network
+    ports:
       - "${ELEMENT_PORT:-8080}:80"
     restart: unless-stopped
     user: "0:0"
@@ -204,8 +203,11 @@ services:
       "
 
 networks:
-  core-network:
-    external: true
+  voice-stack-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
 
 volumes:
   postgres_data:
