@@ -51,9 +51,9 @@ services:
       - media_store:/media_store
     depends_on:
       - postgres
-      - redis
-    networks:
-      - core-network    ports:
+      - redis    networks:
+      - core-network
+    ports:
       - "${SYNAPSE_PORT:-8008}:8008"
     restart: unless-stopped
     entrypoint: >
@@ -145,7 +145,8 @@ services:
     depends_on:
       - synapse
     networks:
-      - core-network    ports:
+      - core-network
+    ports:
       - "${ELEMENT_PORT:-8080}:80"
     restart: unless-stopped
     user: "0:0"
