@@ -1,0 +1,187 @@
+version: '3.8'
+
+# Voice Stack for Portainer Deployment
+# This is an optimized version for Portainer stack deployment
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: synapse
+      POSTGRES_USER: synapse
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-synapse_password}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - core-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synapse"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    networks:
+      - voice-stack
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  synapse-init:
+    image: matrixdotorg/synapse:latest
+    entrypoint: >
+      sh -c "
+        if [ ! -f /data/homeserver.yaml ]; then
+          python -m synapse.app.homeserver \
+            --server-name=${SERVER_NAME:-matrix.byte-box.org} \
+            --config-path=/data/homeserver.yaml \
+            --generate-config \
+            --data-directory=/data \
+            --report-stats=no &&
+          sed -i 's/#enable_registration: false/enable_registration: true/' /data/homeserver.yaml &&
+          sed -i 's/#registration_shared_secret:.*/registration_shared_secret: \"${REGISTRATION_SECRET:-change_me}\"/' /data/homeserver.yaml &&
+          echo 'turn_uris: [\"turn:coturn:3478?transport=udp\", \"turn:coturn:3478?transport=tcp\"]' >> /data/homeserver.yaml &&
+          echo 'turn_shared_secret: \"${TURN_SECRET:-change_me}\"' >> /data/homeserver.yaml &&
+          echo 'turn_user_lifetime: 1h' >> /data/homeserver.yaml &&
+          echo 'turn_allow_guests: true' >> /data/homeserver.yaml &&
+          echo 'database:' > /tmp/db.yaml &&
+          echo '  name: psycopg2' >> /tmp/db.yaml &&
+          echo '  args:' >> /tmp/db.yaml &&
+          echo '    user: synapse' >> /tmp/db.yaml &&
+          echo '    password: ${POSTGRES_PASSWORD:-synapse_password}' >> /tmp/db.yaml &&
+          echo '    database: synapse' >> /tmp/db.yaml &&
+          echo '    host: postgres' >> /tmp/db.yaml &&
+          echo '    cp_min: 5' >> /tmp/db.yaml &&
+          echo '    cp_max: 10' >> /tmp/db.yaml &&
+          sed -i '/^database:/,/^[a-z]/{ /^database:/r /tmp/db.yaml' -e '/^database:/,/^[a-z]/d; }' /data/homeserver.yaml
+        fi
+      "    volumes:
+      - synapse_data:/data
+    networks:
+      - voice-stack
+    environment:
+      SERVER_NAME: ${SERVER_NAME:-matrix.byte-box.org}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-synapse_password}
+      TURN_SECRET: ${TURN_SECRET:-change_me}
+      REGISTRATION_SECRET: ${REGISTRATION_SECRET:-change_me}
+  synapse:
+    image: matrixdotorg/synapse:latest
+    ports:
+      - "${SYNAPSE_PORT:-8008}:8008"
+      - "${FEDERATION_PORT:-8448}:8448"
+    volumes:
+      - synapse_data:/data
+      - media_store:/media_store
+    environment:
+      SYNAPSE_SERVER_NAME: ${SERVER_NAME:-matrix.byte-box.org}
+      SYNAPSE_REPORT_STATS: "no"
+    depends_on:
+      - postgres
+      - redis
+      - synapse-init
+    networks:
+      - voice-stack
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8008/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  coturn:
+    image: coturn/coturn:latest
+    ports:
+      - "${TURN_PORT:-3478}:3478/udp"
+      - "${TURN_PORT:-3478}:3478/tcp"
+      - "${TURNS_PORT:-5349}:5349/udp"
+      - "${TURNS_PORT:-5349}:5349/tcp"
+      - "49152-49172:49152-49172/udp"
+    command: >
+      sh -c "
+        echo 'listening-port=3478' > /etc/coturn/turnserver.conf &&
+        echo 'tls-listening-port=5349' >> /etc/coturn/turnserver.conf &&
+        echo 'listening-ip=0.0.0.0' >> /etc/coturn/turnserver.conf &&        echo 'realm=turn.${SERVER_NAME:-matrix.byte-box.org}' >> /etc/coturn/turnserver.conf &&
+        echo 'server-name=turn.${SERVER_NAME:-matrix.byte-box.org}' >> /etc/coturn/turnserver.conf &&
+        echo 'fingerprint' >> /etc/coturn/turnserver.conf &&
+        echo 'lt-cred-mech' >> /etc/coturn/turnserver.conf &&
+        echo 'user=${TURN_USERNAME:-turn_user}:${TURN_PASSWORD:-turn_password}' >> /etc/coturn/turnserver.conf &&
+        echo 'use-auth-secret' >> /etc/coturn/turnserver.conf &&
+        echo 'static-auth-secret=${TURN_SECRET:-change_me}' >> /etc/coturn/turnserver.conf &&
+        echo 'total-quota=100' >> /etc/coturn/turnserver.conf &&
+        echo 'user-quota=12' >> /etc/coturn/turnserver.conf &&
+        echo 'max-bps=1000000' >> /etc/coturn/turnserver.conf &&
+        echo 'verbose' >> /etc/coturn/turnserver.conf &&
+        echo 'no-multicast-peers' >> /etc/coturn/turnserver.conf &&
+        echo 'no-loopback-peers' >> /etc/coturn/turnserver.conf &&
+        turnserver -c /etc/coturn/turnserver.conf
+      "    environment:
+      SERVER_NAME: ${SERVER_NAME:-matrix.byte-box.org}
+      TURN_USERNAME: ${TURN_USERNAME:-turn_user}
+      TURN_PASSWORD: ${TURN_PASSWORD:-turn_password}
+      TURN_SECRET: ${TURN_SECRET:-change_me}
+    networks:
+      - voice-stack
+    restart: unless-stopped
+
+  element-web:
+    image: vectorim/element-web:latest
+    ports:
+      - "${ELEMENT_PORT:-8080}:80"
+    command: >
+      sh -c "
+        cat > /app/config.json << EOF
+        {
+          \"default_server_config\": {            \"m.homeserver\": {
+              \"base_url\": \"https://${SERVER_NAME:-matrix.byte-box.org}\",
+              \"server_name\": \"${SERVER_NAME:-matrix.byte-box.org}\"
+            }
+          },
+          \"default_server_name\": \"${SERVER_NAME:-matrix.byte-box.org}\",
+          \"default_theme\": \"dark\",
+          \"disable_custom_urls\": false,
+          \"disable_guests\": false,
+          \"brand\": \"Voice Stack Element\",
+          \"default_federate\": true,
+          \"default_guest_access\": true,
+          \"showLabsSettings\": true,
+          \"features\": {
+            \"feature_pinning\": true,
+            \"feature_custom_status\": true,
+            \"feature_custom_tags\": true
+          },          \"room_directory\": {
+            \"servers\": [
+              \"${SERVER_NAME:-matrix.byte-box.org}\",
+              \"matrix.org\"
+            ]
+          },
+          \"jitsi\": {
+            \"preferred_domain\": \"meet.jit.si\"
+          }
+        }
+        EOF &&
+        /docker-entrypoint.sh
+      "    environment:
+      SERVER_NAME: ${SERVER_NAME:-matrix.byte-box.org}
+      SYNAPSE_PORT: ${SYNAPSE_PORT:-8008}
+    depends_on:
+      - synapse
+    networks:
+      - voice-stack
+    restart: unless-stopped
+
+networks:
+  core-network:
+    external: true
+
+volumes:
+  postgres_data:
+  redis_data:
+  synapse_data:
+  media_store:

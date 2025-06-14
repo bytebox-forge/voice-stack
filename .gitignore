@@ -1,0 +1,89 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Synapse data and configuration
+synapse/data/
+synapse/*.db
+synapse/*.log
+synapse/homeserver.pid
+synapse/signing.key
+synapse/*.signing.key
+
+# Media store
+media_store/
+
+# Logs
+logs/
+*.log
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker volumes data (if using bind mounts)
+postgres_data/
+redis_data/
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Cloudflare tunnel credentials
+.cloudflared/
+*.json
+
+# SSL certificates
+*.pem
+*.key
+*.crt
+*.cert
+
+# Node modules (if any)
+node_modules/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Secrets and sensitive data
+secrets/
+credentials/
+*.secret
+*.credential
+
+# Docker-related
+.docker/
+docker-compose.override.yml
+
+# Portainer specific
+portainer_data/
+
+# TURN server logs
+turnserver.log
