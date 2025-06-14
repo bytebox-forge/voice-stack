@@ -157,51 +157,13 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    command: >
+    entrypoint: >
       sh -c "
-        echo 'Starting Element Web configuration...' &&
-        mkdir -p /tmp/element &&
-        echo 'Creating config.json...' &&
-        cat > /tmp/element/config.json << EOF
-        {
-          \"default_server_config\": {
-            \"m.homeserver\": {
-              \"base_url\": \"https://$${SERVER_NAME}\",
-              \"server_name\": \"$${SERVER_NAME}\"
-            }
-          },
-          \"default_server_name\": \"$${SERVER_NAME}\",
-          \"default_theme\": \"dark\",
-          \"disable_custom_urls\": false,
-          \"disable_guests\": false,
-          \"brand\": \"Voice Stack Element\",
-          \"default_federate\": true,
-          \"default_guest_access\": true,
-          \"showLabsSettings\": true,
-          \"features\": {
-            \"feature_pinning\": true,
-            \"feature_custom_status\": true,
-            \"feature_custom_tags\": true
-          },
-          \"room_directory\": {
-            \"servers\": [
-              \"$${SERVER_NAME}\",
-              \"matrix.org\"
-            ]
-          },
-          \"jitsi\": {
-            \"preferred_domain\": \"meet.jit.si\"
-          }
-        }
-        EOF &&
-        echo 'Config file created successfully:' &&
-        cat /tmp/element/config.json &&
-        echo 'Copying config to app directory...' &&
-        cp /tmp/element/config.json /app/config.json &&
-        chmod 644 /app/config.json &&
-        echo 'Element Web starting...' &&
-        echo 'Server will be available on port 80' &&
-        /docker-entrypoint.sh
+        echo 'Starting Element Web...' &&
+        mkdir -p /app &&
+        echo '{\"default_server_config\":{\"m.homeserver\":{\"base_url\":\"https://${SERVER_NAME}\",\"server_name\":\"${SERVER_NAME}\"}},\"default_server_name\":\"${SERVER_NAME}\",\"brand\":\"Voice Stack Element\"}' > /app/config.json &&
+        echo 'Config created, starting nginx...' &&
+        exec /docker-entrypoint.sh
       "
 
 networks:
