@@ -30,6 +30,8 @@ A complete, family-friendly voice and chat server stack using Matrix Synapse, El
 4. **Set environment variables** (see Configuration below)
 5. **Deploy**
 
+> **Note:** If you see Element Web stuck in a "Configuring Element Web..." loop, make sure your Portainer environment variables are set correctly, especially the `SERVER_NAME` variable.
+
 ### Method 2: Docker Compose
 
 ```bash
