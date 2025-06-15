@@ -26,7 +26,7 @@ A complete, family-friendly voice and chat server stack using Matrix Synapse, El
 
 1. **Create new stack** in Portainer
 2. **Repository URL**: `https://github.com/anykolaiszyn/voice-stack.git`
-3. **Compose Path**: `docker-compose.yml`
+3. **Compose Path**: `docker-compose.portainer-standalone.yml`
 4. **Set environment variables** (see Configuration below)
 5. **Deploy**
 

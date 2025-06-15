@@ -129,6 +129,54 @@ To disable new registrations:
 - Check Synapse logs for token creation messages
 - Try restarting the voice-stack-synapse container
 
+## Resolving the Element Web “no default server specified” Loop
+
+When Element Web logs keep repeating:
+
+```
+Configuring Element Web...
+Invalid configuration: no default server specified
+```
+
+make sure your compose file’s Element Web service uses this startup snippet:
+
+```yaml
+  element-web:
+    image: nginx:alpine
+    container_name: voice-stack-element
+    ports:
+      - "${ELEMENT_PORT:-8080}:80"
+    environment:
+      - SYNAPSE_URL=http://synapse:${SYNAPSE_PORT:-8008}
+      - SERVER_NAME=${SERVER_NAME:-matrix.byte-box.org}
+    command: >
+      /bin/sh -euc "
+        echo 'Installing prerequisites...';
+        apk add --no-cache wget tar;
+        echo 'Downloading Element Web...';
+        wget -qO- https://github.com/vector-im/element-web/releases/latest/download/element-web.tar.gz \
+          | tar xz -C /usr/share/nginx/html;
+        echo 'Generating config.json...';
+        cat > /usr/share/nginx/html/config.json << 'EOF'
+        {
+          "default_server_config": {
+            "m.homeserver": {
+              "base_url": "${SYNAPSE_URL}",
+              "server_name": "${SERVER_NAME}"
+            }
+          },
+          "disable_custom_urls": false,
+          "disable_guests": true
+        }
+        EOF
+        echo 'Starting nginx...';
+        exec nginx -g 'daemon off;'
+      "
+    networks:
+      - voice-stack-network
+      - proxy-bridge
+```
+
 ## Perfect for Families
 
 This setup gives you:
