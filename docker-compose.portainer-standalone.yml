@@ -88,22 +88,12 @@ services:
           echo '    host: postgres' >> /tmp/db.yaml &&
           echo '    cp_min: 5' >> /tmp/db.yaml &&
           echo '    cp_max: 10' >> /tmp/db.yaml &&
-          sed -i '/^database:/,/^[a-z]/{ /^database:/r /tmp/db.yaml' -e '/^database:/,/^[a-z]/d; }' /data/homeserver.yaml &&
-          echo 'redis:' >> /data/homeserver.yaml &&
+          sed -i '/^database:/,/^[a-z]/{ /^database:/r /tmp/db.yaml' -e '/^database:/,/^[a-z]/d; }' /data/homeserver.yaml &&          echo 'redis:' >> /data/homeserver.yaml &&
           echo '  enabled: true' >> /data/homeserver.yaml &&
           echo '  host: redis' >> /data/homeserver.yaml &&
-          echo '  port: 6379' >> /data/homeserver.yaml
-        fi &&
-        if [ -n \"$${REGISTRATION_TOKEN}\" ]; then
-          echo 'Creating registration token: $${REGISTRATION_TOKEN}' &&
-          (
-            sleep 30 &&
-            curl -X POST http://localhost:8008/_synapse/admin/v1/registration_tokens/new \
-              -H 'Content-Type: application/json' \
-              -d '{\"token\":\"'$${REGISTRATION_TOKEN}'\"}' || \
-            echo 'Token creation will retry after server startup...'
-          ) &
-        fi &&
+          echo '  port: 6379' >> /data/homeserver.yaml        fi &&
+        echo 'Matrix Synapse configured successfully. Admin account and registration tokens must be created manually after startup.' &&
+        echo 'See ADMIN-SETUP.md and REGISTRATION-TOKENS.md for instructions.' &&
         exec python -m synapse.app.homeserver -c /data/homeserver.yaml
       "
   coturn:
@@ -154,9 +144,9 @@ services:
         echo 'no-loopback-peers' >> /tmp/coturn/turnserver.conf &&
         echo 'pidfile=/tmp/coturn/turnserver.pid' >> /tmp/coturn/turnserver.conf &&
         echo 'userdb=/tmp/coturn/turnuserdb.conf' >> /tmp/coturn/turnserver.conf &&
-        chmod 644 /tmp/coturn/turnserver.conf &&
-        echo 'Configuration file created:' &&
-        cat /tmp/coturn/turnserver.conf &&        echo 'Starting Coturn server...' &&
+        chmod 644 /tmp/coturn/turnserver.conf &&        echo 'Configuration file created:' &&
+        cat /tmp/coturn/turnserver.conf &&
+        echo 'Starting Coturn server...' &&
         turnserver -c /tmp/coturn/turnserver.conf
       "
   element-web:

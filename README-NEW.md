@@ -74,8 +74,10 @@ PUBLIC_BASEURL=https://matrix.your-domain.com
 
 ### Registration Token Options
 
-- **Set `REGISTRATION_TOKEN`**: Controlled registration (users need the token)
-- **Leave empty**: Registration disabled (admin-only account creation)
+- **Set `REGISTRATION_TOKEN`**: Enables token-based registration (tokens created manually after deployment)
+- **Leave empty**: Registration disabled (admin-only account creation via registration secret)
+
+**Important**: Registration tokens must be created manually after deployment using the Matrix admin API. See [`REGISTRATION-TOKENS.md`](REGISTRATION-TOKENS.md) for complete instructions.
 
 ## 🌐 Access Your Server
 
@@ -87,6 +89,7 @@ After deployment, access your services at:
 ## 📚 Documentation
 
 - **[`PORTAINER-SIMPLE.md`](PORTAINER-SIMPLE.md)** - Complete Portainer deployment guide
+- **[`ADMIN-SETUP.md`](ADMIN-SETUP.md)** - Creating your first admin account  
 - **[`REGISTRATION-TOKENS.md`](REGISTRATION-TOKENS.md)** - User registration control
 - **[`REVERSE-PROXY.md`](REVERSE-PROXY.md)** - Custom domains with NPM/Traefik
 - **[`NPM-QUICK-CONNECT.md`](NPM-QUICK-CONNECT.md)** - Nginx Proxy Manager integration
@@ -137,9 +140,10 @@ After deployment, access your services at:
 - Check container logs in Portainer
 
 **Registration not working**:
-- Verify `REGISTRATION_TOKEN` is set correctly
-- Check Synapse container logs for token creation
-- Wait 30 seconds after deployment for setup
+
+- Create admin account first (see [`ADMIN-SETUP.md`](ADMIN-SETUP.md))
+- Manually create registration tokens (see [`REGISTRATION-TOKENS.md`](REGISTRATION-TOKENS.md))
+- Wait 30 seconds after deployment for initial setup to complete
 
 **Voice/Video not working**:
 - Ensure TURN ports (3478, 5349, 49152-49172) are open

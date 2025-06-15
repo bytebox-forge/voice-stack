@@ -2,77 +2,92 @@
 
 ## Overview
 
-This guide explains how to set up registration tokens (keys) for your Matrix server. Registration tokens allow you to control who can create accounts on your server by requiring a special token during registration.
+This guide explains how to set up registration tokens for your Matrix server. Registration tokens allow you to control who can create accounts on your server by requiring a special token during registration.
 
-## Environment Variable Configuration
+**Important**: Registration tokens must be created manually after your server is deployed and running. The Matrix admin API requires authentication, so tokens cannot be created automatically during initial setup.
 
-### Step 1: Configure Your .env File
+## Deployment Configuration
 
-Copy `.env.example` to `.env` and configure the registration token settings:
+### Step 1: Configure Environment Variables
 
-```bash
-# Copy the example file
-cp .env.example .env
-```
-
-Edit your `.env` file and set these variables:
+In your Portainer stack or `.env` file, set these variables to enable token-based registration:
 
 ```bash
-# Enable registration with tokens
-REGISTRATION_REQUIRES_TOKEN=true
-
-# Pre-create registration tokens (comma-separated list)
-# Format: "token1:uses,token2:uses" or "token1,token2" (unlimited uses)
-# Examples:
-REGISTRATION_TOKENS="family2024:5,friends2024:10,relatives2024"
-
-# Other settings
-REGISTRATION_SECRET=your_secure_registration_secret_here
+# Server configuration
 SERVER_NAME=matrix.your-domain.com
+REGISTRATION_SECRET=your_secure_registration_secret_here
+
+# Optional: Set a registration token for reference
+# This enables token-based registration but doesn't create the token
+REGISTRATION_TOKEN=family2024
 ```
 
-### Token Format Examples
+### Step 2: Deploy Your Stack
+
+Deploy the stack first with token-based registration enabled. This configures Synapse to require tokens but doesn't create them yet.
+
+## Creating Registration Tokens (Manual Process)
+
+### Method 1: Using the Admin API (Recommended)
+
+After your server is running, create tokens via the admin API:
+
+1. **Get your admin access token** (see admin setup guide)
+2. **Create a registration token**:
 
 ```bash
-# Single unlimited token
-REGISTRATION_TOKENS="family2024"
+# Create a token with unlimited uses
+curl -X POST \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"token": "family2024"}' \
+  http://your-server:8008/_synapse/admin/v1/registration_tokens/new
 
-# Multiple tokens with usage limits
-REGISTRATION_TOKENS="family2024:5,friends2024:10,school2024:3"
-
-# Mix of limited and unlimited tokens
-REGISTRATION_TOKENS="family2024,friends2024:10,temp2024:1"
+# Create a token with limited uses (5 uses)
+curl -X POST \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"token": "friends2024", "uses_allowed": 5}' \
+  http://your-server:8008/_synapse/admin/v1/registration_tokens/new
 ```
 
-## How It Works
+### Method 2: Using Docker Exec
 
-1. **Token Creation**: Tokens are automatically created when the container starts
-## Deployment Steps
-
-### Step 1: Update Configuration
-
-1. Edit your `.env` file with the token settings above
-2. Commit and push to your git repository:
+If you prefer to work directly with the container:
 
 ```bash
-git add .env
-git commit -m "Configure registration tokens"
-git push origin main
+# Enter the Synapse container
+docker exec -it voice-stack-synapse bash
+
+# Create a registration token
+python -m synapse.app.admin_cmd registration_token \
+  --config-path /data/homeserver.yaml \
+  --token family2024 \
+  --uses-allowed unlimited
+
+# Or with limited uses
+python -m synapse.app.admin_cmd registration_token \
+  --config-path /data/homeserver.yaml \
+  --token friends2024 \
+  --uses-allowed 5
 ```
 
-### Step 2: Deploy via Portainer
+## Admin Account Setup
 
-1. **Go to Portainer** → **Stacks** → **voice-stack**
-2. **Click "Update Stack"** (this pulls the latest changes)
-3. **Review environment variables** in the stack configuration
-4. **Click "Update"** to restart with new settings
+Before creating tokens, you need an admin account. Create one using the registration secret:
 
-### Step 3: Verify Token Creation
+```bash
+# Enter the Synapse container
+docker exec -it voice-stack-synapse bash
 
-1. **Check container logs**:
-   - Portainer → Containers → `voice-stack-synapse`
-   - Click **Logs** tab
-   - Look for messages like: `Creating token 'family2024' with 5 uses...`
+# Create admin user
+python -m synapse.app.admin_cmd \
+  --config-path /data/homeserver.yaml \
+  register_new_matrix_user \
+  --user admin \
+  --password secure_admin_password \
+  --admin
+```
 
 ## Using Registration Tokens
 
@@ -82,87 +97,118 @@ git push origin main
 2. **Click "Create Account"**
 3. **Enter registration details**:
    - Username: `newuser`
-   - Password: `secure_password`
-   - **Registration Token**: `family2024` (the token you provided)
+   - Password: `secure_password`  
+   - **Registration Token**: `family2024` (the token you created)
 4. **Complete registration**
 
-### Token Status
+### Checking Token Status
 
-Tokens are automatically managed:
-- ✅ **Valid tokens**: Allow registration
-- ❌ **Expired tokens**: Registration fails
-- ⚠️ **Used up tokens**: No more registrations allowed
+List all tokens and their usage:
+
+```bash
+# Via admin API
+curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  http://your-server:8008/_synapse/admin/v1/registration_tokens
+
+# Via container
+docker exec -it voice-stack-synapse \
+  python -m synapse.app.admin_cmd registration_token \
+  --config-path /data/homeserver.yaml \
+  --list
+```
 
 ## Managing Tokens
 
-### Via Environment Variables (Recommended)
-
-Update your `.env` file and redeploy:
+### Creating Different Token Types
 
 ```bash
-# Add new tokens
-REGISTRATION_TOKENS="family2024:5,friends2024:10,newtoken2024:3"
+# Unlimited family token
+curl -X POST \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"token": "family2024"}' \
+  http://your-server:8008/_synapse/admin/v1/registration_tokens/new
 
-# Commit and redeploy
-git add .env && git commit -m "Add new registration tokens" && git push
+# Limited friend token (10 uses)
+curl -X POST \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"token": "friends2024", "uses_allowed": 10}' \
+  http://your-server:8008/_synapse/admin/v1/registration_tokens/new
+
+# One-time guest token
+curl -X POST \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"token": "guest2024", "uses_allowed": 1}' \
+  http://your-server:8008/_synapse/admin/v1/registration_tokens/new
+```
+
+### Deleting Tokens
+
+```bash
+# Delete a token
+curl -X DELETE \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  http://your-server:8008/_synapse/admin/v1/registration_tokens/old_token
 ```
 
 ## Security Best Practices
 
 ### 1. Token Management
+
 - **Use descriptive names**: `family2024`, `friends2024`, `work2024`
 - **Set usage limits**: Prevent token sharing
 - **Regular rotation**: Create new tokens periodically
 
 ### 2. Token Distribution
+
 - **Secure channels**: Share tokens via secure messaging
-- **One-time use**: For temporary access
+- **One-time use**: For temporary access  
 - **Family tokens**: Unlimited for trusted family members
 
 ### 3. Monitoring
+
 - **Check logs**: Monitor token usage in container logs
 - **Regular audits**: Review who has registered recently
 - **Revoke unused**: Remove tokens that aren't needed
 
 ## Integration with Family Setup
 
-Registration tokens work perfectly with the family setup:
+Registration tokens work perfectly with family-friendly configurations:
 
-1. **Admin account**: Create via command line (no token needed)
+1. **Admin account**: Create via registration secret (no token needed)
 2. **Family tokens**: Unlimited tokens for family members
-3. **Friend tokens**: Limited tokens for family friends
+3. **Friend tokens**: Limited tokens for family friends  
 4. **Temporary tokens**: One-time tokens for specific people
 
-```bash
-# Example family configuration
-REGISTRATION_REQUIRES_TOKEN=true
-REGISTRATION_TOKENS="family2024,friends2024:10,playdates2024:5"
-```
+## Quick Setup Summary
 
-This setup provides:
-- ✅ **Family control**: Only authorized people can register
-- ✅ **Flexible access**: Different token types for different groups
-- ✅ **Easy management**: Environment variable configuration
-- ✅ **Security**: No public registration, controlled access
-   ```powershell
-   .\manage-tokens.ps1 list
-   ```
+1. **Deploy your stack** with `REGISTRATION_TOKEN` environment variable set
+2. **Create admin account** using registration secret
+3. **Get admin access token** for API calls
+4. **Create registration tokens** via admin API or container commands
+5. **Share tokens** with family/friends securely
+6. **Monitor usage** through logs and admin API
 
 ## Troubleshooting
 
 ### Token Not Working
+
 - Ensure Synapse has been restarted after config changes
 - Check that `registration_requires_token: true` is in homeserver.yaml
 - Verify the token wasn't already used up
 
 ### Can't Create Tokens
+
 - Check that Synapse container is running
 - Verify admin API is accessible
-- Check Docker/Portainer connectivity
+- Ensure you have a valid admin access token
 
 ### Users Still Can't Register
-- Confirm `enable_registration: true` is set
-- Check Element Web is pointing to correct server
-- Verify no firewall blocking registration API
 
-This system gives you complete control over who can join your family Matrix server while keeping it secure from random registrations.
+- Confirm `enable_registration: true` is set in homeserver.yaml
+- Check Element Web is pointing to correct server
+- Verify no firewall is blocking registration API
+
+This manual token system gives you complete control over who can join your family Matrix server while maintaining security.
