@@ -166,9 +166,10 @@ services:
         echo 'Configuration file created:' &&
         cat /tmp/coturn/turnserver.conf &&
         echo 'Starting Coturn server...' &&
-        turnserver -c /tmp/coturn/turnserver.conf
-      "  element-web:
-    image: vectorim/element-web:latest
+        turnserver -c /tmp/coturn/turnserver.conf      "
+
+  element-web:
+    image: nginx:alpine
     container_name: voice-stack-element
     user: root
     environment:
@@ -183,13 +184,19 @@ services:
       - "${ELEMENT_PORT:-8080}:80"
     restart: unless-stopped
     volumes:
-      - element_config:/app/config
-    entrypoint: |
-      /bin/sh -c '
-      echo "Setting up Element Web with server: $SERVER_NAME and URL: $SYNAPSE_URL"
-      mkdir -p /app/config
-      chmod 755 /app/config
-      cat > /app/config/config.json << EOF
+      - element_config:/element-config
+    command: |
+      sh -c '
+      echo "Installing Element Web from official source..."
+      apk add --no-cache wget tar
+      cd /tmp
+      wget -qO element.tar.gz https://github.com/vector-im/element-web/releases/download/v1.11.50/element-v1.11.50.tar.gz
+      mkdir -p /usr/share/nginx/html
+      tar -xzf element.tar.gz -C /usr/share/nginx/html --strip-components=1
+      
+      echo "Configuring Element Web with server: $SERVER_NAME"
+      mkdir -p /usr/share/nginx/html/config
+      cat > /usr/share/nginx/html/config/config.json << EOF
       {
         "default_server_config": {
           "m.homeserver": {
@@ -205,22 +212,11 @@ services:
         "disable_login_language_selector": false,
         "disable_3pid_login": false,
         "brand": "Element",
-        "integrations_ui_url": "https://scalar.vector.im/",
-        "integrations_rest_url": "https://scalar.vector.im/api",
-        "integrations_widgets_urls": [
-          "https://scalar.vector.im/_matrix/integrations/v1",
-          "https://scalar.vector.im/api",
-          "https://scalar-staging.vector.im/_matrix/integrations/v1",
-          "https://scalar-staging.vector.im/api",
-          "https://scalar-staging.riot.im/scalar/api"
-        ],
-        "bug_report_endpoint_url": "https://element.io/bugreports/submit",
-        "uisi_autorageshake_app": "element-auto-uisi",
         "showLabsSettings": true,
         "piwik": false
       }
       EOF
-      chmod 644 /app/config/config.json
+      
       echo "Element Web configuration created. Starting web server..."
       exec nginx -g "daemon off;"
       '
@@ -229,7 +225,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 60s
 
 networks:
   voice-stack-network:
