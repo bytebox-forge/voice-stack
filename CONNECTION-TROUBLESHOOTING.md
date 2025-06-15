@@ -31,7 +31,32 @@ Look for containers that are:
 
 ## Common Causes & Solutions
 
-### 🔧 Issue 1: Synapse Container Not Starting
+### 🔧 Issue 1: Element Web Stuck in Configuration Loop
+
+**Symptoms:**
+- Element Web interface shows "Configuring Element Web..." message repeatedly
+- Element container is running but the interface doesn't load
+
+**Check Element Logs:**
+```bash
+# In Portainer: Containers → voice-stack-element → Logs
+# Or via command line:
+docker logs voice-stack-element
+```
+
+**Common Solutions:**
+
+**A) Environment Variable Issue:**
+- Make sure the `SERVER_NAME` environment variable is correctly set in Portainer or your .env file
+- The variable needs to be properly passed to the container
+- Try redeploying with `SERVER_NAME` explicitly set
+
+**B) Configuration File Generation:**
+- The Element Web service needs to properly generate its config.json file
+- Verify that `/app/config` directory has proper permissions (this is handled by the `user: root` setting)
+- If necessary, redeploy the stack with updated configurations
+
+### 🔧 Issue 2: Synapse Container Not Starting
 
 **Symptoms:**
 - Connection refused on port 8008
@@ -68,7 +93,7 @@ docker volume rm voice-stack_synapse_data
 # Then restart the stack
 ```
 
-### 🔧 Issue 2: Element Web Not Accessible
+### 🔧 Issue 3: Element Web Not Accessible
 
 **Symptoms:**
 - Connection refused on port 8080
@@ -95,7 +120,7 @@ netstat -an | findstr :8080
 docker logs voice-stack-element | grep nginx
 ```
 
-### 🔧 Issue 3: Network Connectivity Issues
+### 🔧 Issue 4: Network Connectivity Issues
 
 **Symptoms:**
 - Services are running but can't communicate
@@ -124,7 +149,7 @@ docker network prune
 docker-compose -f docker-compose.portainer-standalone.yml up -d
 ```
 
-### 🔧 Issue 4: Port Binding Issues
+### 🔧 Issue 5: Port Binding Issues
 
 **Symptoms:**
 - Error: "Port already in use" 
