@@ -31,6 +31,11 @@ A complete, family-friendly voice and chat server stack using Matrix Synapse, El
 5. **Deploy**
 
 > **Note:** If you see Element Web stuck in a "Configuring Element Web..." loop, make sure your Portainer environment variables are set correctly, especially the `SERVER_NAME` variable. The configuration now uses a more robust approach with a two-step process: first creating a template config and then using `sed` to replace the server name.
+>
+> You can also use the included diagnostic script to troubleshoot Element Web configuration issues:
+> ```bash
+> docker exec -it voice-stack-element /bin/sh -c "wget -O - https://raw.githubusercontent.com/anykolaiszyn/voice-stack/main/element-config-fix.sh | sh"
+> ```
 
 ### Method 2: Docker Compose
 
