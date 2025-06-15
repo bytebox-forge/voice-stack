@@ -159,8 +159,7 @@ services:
         echo 'pidfile=/tmp/coturn/turnserver.pid' >> /tmp/coturn/turnserver.conf &&        echo 'userdb=/tmp/coturn/turnuserdb.conf' >> /tmp/coturn/turnserver.conf &&
         chmod 644 /tmp/coturn/turnserver.conf &&
         echo 'Configuration file created:' &&
-        cat /tmp/coturn/turnserver.conf &&
-        echo 'Starting Coturn server...' &&
+        cat /tmp/coturn/turnserver.conf &&        echo 'Starting Coturn server...' &&
         turnserver -c /tmp/coturn/turnserver.conf
       "
 
@@ -168,7 +167,7 @@ services:
     image: vectorim/element-web:latest
     container_name: voice-stack-element
     environment:
-      SERVER_NAME: ${SERVER_NAME:-matrix.byte-box.org}
+      - SERVER_NAME=${SERVER_NAME:-matrix.byte-box.org}
     depends_on:
       - synapse
     networks:
@@ -177,13 +176,12 @@ services:
     ports:
       - "${ELEMENT_PORT:-8080}:80"
     restart: unless-stopped
-    volumes:
-      - element_config:/app/config
-    entrypoint: >
+    tmpfs:
+      - /app/config:noexec,nosuid,size=10m
+    command: >
       sh -c "
-        echo 'Configuring Element Web for family-safe mode...' &&
-        mkdir -p /app/config &&
-        cat > /app/config/config.json << 'EOF'
+        echo 'Setting up Element Web configuration...' &&
+        cat > /app/config/config.json << EOF
         {
           \"default_server_config\": {
             \"m.homeserver\": {
@@ -193,42 +191,16 @@ services:
           },
           \"disable_custom_urls\": true,
           \"disable_guests\": true,
-          \"disable_login_language_selector\": false,
           \"disable_3pid_login\": true,
-          \"default_theme\": \"light\",
           \"room_directory\": {
             \"servers\": [\"$${SERVER_NAME}\"]
           },
-          \"enable_presence_by_hs_url\": {
-            \"$${SERVER_NAME}\": false
-          },
-          \"terms_and_conditions_links\": [],
-          \"default_country_code\": \"US\",
-          \"show_labs_settings\": false,
-          \"features\": {
-            \"feature_spaces\": true,
-            \"feature_groups\": false,
-            \"feature_pinning\": true,
-            \"feature_custom_status\": false,
-            \"feature_custom_tags\": false,
-            \"feature_state_counters\": false,
-            \"feature_many_integration_managers\": false,
-            \"feature_mjolnir\": false,
-            \"feature_dm_verification\": true,
-            \"feature_bridge_state\": false,
-            \"feature_presence_in_room_list\": false,
-            \"feature_custom_themes\": false
-          },
           \"default_federate\": false,
-          \"welcomeUserId\": \"@admin:$${SERVER_NAME}\",
-          \"map_style_url\": \"\",
-          \"embedded_pages\": {
-            \"home_url\": \"home.html\"
-          }
+          \"show_labs_settings\": false
         }
         EOF
-        echo 'Element Web configured. Starting nginx...' &&
-        nginx -g 'daemon off;'
+        echo 'Element Web configured successfully.' &&
+        exec nginx -g 'daemon off;'
       "
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
@@ -253,4 +225,3 @@ volumes:
   synapse_data:
   media_store:
   coturn_data:
-  element_config:
