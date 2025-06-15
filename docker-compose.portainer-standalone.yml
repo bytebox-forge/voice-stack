@@ -186,8 +186,7 @@ services:
     volumes:
       - element_config:/element-config
     command: |
-      sh -c '
-      echo "Installing Element Web from official source..."
+      sh -c '      echo "Installing Element Web from official source..."
       apk add --no-cache wget tar
       cd /tmp
       wget -qO element.tar.gz https://github.com/vector-im/element-web/releases/download/v1.11.50/element-v1.11.50.tar.gz
@@ -195,13 +194,17 @@ services:
       tar -xzf element.tar.gz -C /usr/share/nginx/html --strip-components=1
       
       echo "Configuring Element Web with server: $SERVER_NAME"
-      mkdir -p /usr/share/nginx/html/config
+      mkdir -p /usr/share/nginx/html/config      
+      # Get actual values from environment variables with defaults
+      SYNAPSE_URL_VALUE=${SYNAPSE_URL:-http://synapse:8008}
+      SERVER_NAME_VALUE=${SERVER_NAME:-matrix.byte-box.org}
+      
       cat > /usr/share/nginx/html/config/config.json << EOF
       {
         "default_server_config": {
           "m.homeserver": {
-            "base_url": "$SYNAPSE_URL",
-            "server_name": "$SERVER_NAME"
+            "base_url": "$SYNAPSE_URL_VALUE",
+            "server_name": "$SERVER_NAME_VALUE"
           },
           "m.identity_server": {
             "base_url": "https://vector.im"

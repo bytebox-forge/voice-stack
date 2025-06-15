@@ -48,20 +48,49 @@ docker logs voice-stack-element
 
 **A) Ensure You're Using the Latest Version:**
 - The latest version (June 15, 2025) completely replaces the Element Web container with an nginx-based alternative
-- The new approach downloads Element Web directly from GitHub releases
-- Pull the latest version from the repository and redeploy your stack
 
-**B) Check Environment Variables:**
+### 🔧 Issue 2: Invalid Configuration Error in Element Web
+
+**Symptoms:**
+- Error message: "Your Element is misconfigured: Invalid configuration: no default server specified"
+- Element loads but shows an error preventing login
+
+**Cause:**
+This happens when the config.json file doesn't have the proper `default_server_config` section or environment variables weren't properly expanded.
+
+**Solution:**
+
+**A) Update to the Latest Version:**
+The latest version (June 15, 2025) has improved environment variable handling that fixes this issue automatically. Make sure you're using the latest docker-compose.portainer-standalone.yml file.
+
+**B) If Still Experiencing Issues, Check Configuration Manually:**
+```bash
+# Access the container
+docker exec -it voice-stack-element /bin/sh
+
+# Verify the config.json content
+cat /usr/share/nginx/html/config/config.json
+
+# If needed, restart the container
+exit
+docker restart voice-stack-element
+```
+
+**B) Check Element Web Configuration:**
+
+In the latest version (June 15, 2025+), you shouldn't need to manually fix the configuration, but if you're experiencing issues:
+
 - Make sure both `SERVER_NAME` and `SYNAPSE_URL` environment variables are correctly set
 - Verify the environment variables are properly passed to the container
-- Try redeploying with these variables explicitly set
 
 **C) Manual Verification:**
-- You can check if Element Web was downloaded correctly:
+
+You can check if Element Web is installed correctly:
 ```bash
 docker exec -it voice-stack-element ls -la /usr/share/nginx/html
 ```
-- And verify the configuration:
+
+And verify the configuration has the proper default_server_config section:
 ```bash
 docker exec -it voice-stack-element cat /usr/share/nginx/html/config/config.json
 ```

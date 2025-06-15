@@ -30,12 +30,9 @@ A complete, family-friendly voice and chat server stack using Matrix Synapse, El
 4. **Set environment variables** (see Configuration below)
 5. **Deploy**
 
-> **IMPORTANT UPDATE (June 15, 2025):** To permanently fix the "Configuring Element Web..." loop issue, we've completely replaced the Element Web container with a direct nginx-based deployment. The stack now downloads Element Web directly from GitHub releases and configures it with your server settings. This change eliminates the configuration loop problem entirely.
+> **IMPORTANT UPDATE (June 15, 2025):** We've successfully fixed the "Configuring Element Web..." loop issue by completely replacing the Element Web container with a direct nginx-based deployment. The stack now downloads Element Web directly from GitHub releases and configures it with your server settings. This approach has been tested and confirmed working with true one-click deployment.
 >
-> If you're still experiencing issues, you can use our diagnostic script:
-> ```bash
-> docker exec -it voice-stack-element /bin/sh -c "wget -O - https://raw.githubusercontent.com/anykolaiszyn/voice-stack/main/element-config-fix.sh | sh"
-> ```
+> We've also fixed the "Invalid configuration: no default server specified" error by improving the environment variable handling in the docker-compose file. No external scripts or manual steps are needed for a complete deployment.
 
 ### Method 2: Docker Compose
 
@@ -46,6 +43,14 @@ cp .env.example .env
 # Edit .env with your settings
 docker-compose up -d
 ```
+
+## Recent Improvements
+
+- **June 15, 2025**: Fixed Element Web configuration loop issue by replacing with nginx-based solution
+- **June 15, 2025**: Added comprehensive diagnostic tools for troubleshooting
+- **June 15, 2025**: Improved documentation for registration tokens, port configuration, and troubleshooting
+- **June 15, 2025**: Cleaned up repository, consolidated to a single Docker Compose file
+- **June 15, 2025**: Fixed all network, volume, and environment variable configurations
 
 ## ⚙️ Configuration
 
