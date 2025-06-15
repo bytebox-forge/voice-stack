@@ -52,7 +52,8 @@ docker logs voice-stack-element
 - Try redeploying with `SERVER_NAME` explicitly set
 
 **B) Configuration File Generation:**
-- The Element Web service needs to properly generate its config.json file
+- Check if the `sed` command is able to properly replace the domain in config.json
+- Try running this command manually inside the container: `sed -i "s/matrix\\.byte-box\\.org/$SERVER_NAME/g" /app/config/config.json`
 - Verify that `/app/config` directory has proper permissions (this is handled by the `user: root` setting)
 - If necessary, redeploy the stack with updated configurations
 
