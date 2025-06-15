@@ -44,12 +44,12 @@ services:
       SYNAPSE_REPORT_STATS: "no"
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-synapse_password}
       TURN_SECRET: ${TURN_SECRET:-change_me}
-      REGISTRATION_SECRET: ${REGISTRATION_SECRET:-change_me}
-      # Simple registration token - set this to enable token-based registration
+      REGISTRATION_SECRET: ${REGISTRATION_SECRET:-change_me}      # Simple registration token - set this to enable token-based registration
       REGISTRATION_TOKEN: ${REGISTRATION_TOKEN:-}
     volumes:
       - synapse_data:/data
-      - media_store:/media_store    depends_on:
+      - media_store:/media_store
+    depends_on:
       - postgres
       - redis
     networks:
