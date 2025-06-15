@@ -62,19 +62,32 @@ services:
     entrypoint: >
       sh -c "
         if [ ! -f /data/homeserver.yaml ]; then
-          python -m synapse.app.homeserver --server-name=$${SYNAPSE_SERVER_NAME} --config-path=/data/homeserver.yaml --generate-config --data-directory=/data --report-stats=no &&
-          if [ -n \"$${REGISTRATION_TOKEN}\" ]; then
+          python -m synapse.app.homeserver --server-name=$${SYNAPSE_SERVER_NAME} --config-path=/data/homeserver.yaml --generate-config --data-directory=/data --report-stats=no &&          if [ -n \"$${REGISTRATION_TOKEN}\" ]; then
             echo 'Setting up token-based registration...' &&
             sed -i 's/#enable_registration: false/enable_registration: true/' /data/homeserver.yaml &&
-            sed -i 's/#registration_requires_token: false/registration_requires_token: true/' /data/homeserver.yaml
+            sed -i 's/#registration_requires_token: false/registration_requires_token: true/' /data/homeserver.yaml &&
+            echo 'registration_requires_token: true' >> /data/homeserver.yaml
           else
             echo 'Disabling public registration (family-safe mode)...' &&
-            sed -i 's/#enable_registration: false/enable_registration: false/' /data/homeserver.yaml
-          fi &&
-          sed -i 's/#registration_shared_secret:.*/registration_shared_secret: \"$${REGISTRATION_SECRET}\"/' /data/homeserver.yaml &&
+            sed -i 's/#enable_registration: false/enable_registration: false/' /data/homeserver.yaml &&
+            echo 'enable_registration: false' >> /data/homeserver.yaml &&
+            echo 'registration_requires_token: true' >> /data/homeserver.yaml
+          fi &&sed -i 's/#registration_shared_secret:.*/registration_shared_secret: \"$${REGISTRATION_SECRET}\"/' /data/homeserver.yaml &&
+          echo 'Family-safe configuration settings...' &&
           echo 'allow_public_rooms_over_federation: false' >> /data/homeserver.yaml &&
           echo 'allow_public_rooms_without_auth: false' >> /data/homeserver.yaml &&
+          echo 'enable_room_list_search: false' >> /data/homeserver.yaml &&
+          echo 'allow_guest_access: false' >> /data/homeserver.yaml &&
           echo 'federation_domain_whitelist: []' >> /data/homeserver.yaml &&
+          echo 'allow_device_name_lookup_over_federation: false' >> /data/homeserver.yaml &&
+          echo 'allow_profile_lookup_over_federation: false' >> /data/homeserver.yaml &&
+          echo 'limit_profile_requests_to_users_who_share_rooms: true' >> /data/homeserver.yaml &&
+          echo 'require_auth_for_profile_requests: true' >> /data/homeserver.yaml &&
+          echo 'block_non_admin_invites: false' >> /data/homeserver.yaml &&
+          echo 'enable_search: false' >> /data/homeserver.yaml &&
+          echo 'user_directory:' >> /data/homeserver.yaml &&
+          echo '  enabled: false' >> /data/homeserver.yaml &&
+          echo '  search_all_users: false' >> /data/homeserver.yaml &&
           echo 'turn_uris: [\"turn:coturn:3478?transport=udp\", \"turn:coturn:3478?transport=tcp\"]' >> /data/homeserver.yaml &&
           echo 'turn_shared_secret: \"$${TURN_SECRET}\"' >> /data/homeserver.yaml &&
           echo 'turn_user_lifetime: 1h' >> /data/homeserver.yaml &&
@@ -87,11 +100,12 @@ services:
           echo '    database: synapse' >> /tmp/db.yaml &&
           echo '    host: postgres' >> /tmp/db.yaml &&
           echo '    cp_min: 5' >> /tmp/db.yaml &&
-          echo '    cp_max: 10' >> /tmp/db.yaml &&
-          sed -i '/^database:/,/^[a-z]/{ /^database:/r /tmp/db.yaml' -e '/^database:/,/^[a-z]/d; }' /data/homeserver.yaml &&          echo 'redis:' >> /data/homeserver.yaml &&
+          echo '    cp_max: 10' >> /tmp/db.yaml &&          sed -i '/^database:/,/^[a-z]/{ /^database:/r /tmp/db.yaml' -e '/^database:/,/^[a-z]/d; }' /data/homeserver.yaml &&
+          echo 'redis:' >> /data/homeserver.yaml &&
           echo '  enabled: true' >> /data/homeserver.yaml &&
           echo '  host: redis' >> /data/homeserver.yaml &&
-          echo '  port: 6379' >> /data/homeserver.yaml        fi &&
+          echo '  port: 6379' >> /data/homeserver.yaml
+        fi &&
         echo 'Matrix Synapse configured successfully. Admin account and registration tokens must be created manually after startup.' &&
         echo 'See ADMIN-SETUP.md and REGISTRATION-TOKENS.md for instructions.' &&
         exec python -m synapse.app.homeserver -c /data/homeserver.yaml
@@ -142,13 +156,14 @@ services:
         echo 'simple-log' >> /tmp/coturn/turnserver.conf &&
         echo 'no-multicast-peers' >> /tmp/coturn/turnserver.conf &&
         echo 'no-loopback-peers' >> /tmp/coturn/turnserver.conf &&
-        echo 'pidfile=/tmp/coturn/turnserver.pid' >> /tmp/coturn/turnserver.conf &&
-        echo 'userdb=/tmp/coturn/turnuserdb.conf' >> /tmp/coturn/turnserver.conf &&
-        chmod 644 /tmp/coturn/turnserver.conf &&        echo 'Configuration file created:' &&
+        echo 'pidfile=/tmp/coturn/turnserver.pid' >> /tmp/coturn/turnserver.conf &&        echo 'userdb=/tmp/coturn/turnuserdb.conf' >> /tmp/coturn/turnserver.conf &&
+        chmod 644 /tmp/coturn/turnserver.conf &&
+        echo 'Configuration file created:' &&
         cat /tmp/coturn/turnserver.conf &&
         echo 'Starting Coturn server...' &&
         turnserver -c /tmp/coturn/turnserver.conf
       "
+
   element-web:
     image: vectorim/element-web:latest
     container_name: voice-stack-element
@@ -162,6 +177,59 @@ services:
     ports:
       - "${ELEMENT_PORT:-8080}:80"
     restart: unless-stopped
+    volumes:
+      - element_config:/app/config
+    entrypoint: >
+      sh -c "
+        echo 'Configuring Element Web for family-safe mode...' &&
+        mkdir -p /app/config &&
+        cat > /app/config/config.json << 'EOF'
+        {
+          \"default_server_config\": {
+            \"m.homeserver\": {
+              \"base_url\": \"http://$${SERVER_NAME}:8008\",
+              \"server_name\": \"$${SERVER_NAME}\"
+            }
+          },
+          \"disable_custom_urls\": true,
+          \"disable_guests\": true,
+          \"disable_login_language_selector\": false,
+          \"disable_3pid_login\": true,
+          \"default_theme\": \"light\",
+          \"room_directory\": {
+            \"servers\": [\"$${SERVER_NAME}\"]
+          },
+          \"enable_presence_by_hs_url\": {
+            \"$${SERVER_NAME}\": false
+          },
+          \"terms_and_conditions_links\": [],
+          \"default_country_code\": \"US\",
+          \"show_labs_settings\": false,
+          \"features\": {
+            \"feature_spaces\": true,
+            \"feature_groups\": false,
+            \"feature_pinning\": true,
+            \"feature_custom_status\": false,
+            \"feature_custom_tags\": false,
+            \"feature_state_counters\": false,
+            \"feature_many_integration_managers\": false,
+            \"feature_mjolnir\": false,
+            \"feature_dm_verification\": true,
+            \"feature_bridge_state\": false,
+            \"feature_presence_in_room_list\": false,
+            \"feature_custom_themes\": false
+          },
+          \"default_federate\": false,
+          \"welcomeUserId\": \"@admin:$${SERVER_NAME}\",
+          \"map_style_url\": \"\",
+          \"embedded_pages\": {
+            \"home_url\": \"home.html\"
+          }
+        }
+        EOF
+        echo 'Element Web configured. Starting nginx...' &&
+        nginx -g 'daemon off;'
+      "
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
       interval: 30s
@@ -185,3 +253,4 @@ volumes:
   synapse_data:
   media_store:
   coturn_data:
+  element_config:
