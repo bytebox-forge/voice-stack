@@ -46,8 +46,9 @@ services:
       SYNAPSE_REPORT_STATS: ${SYNAPSE_REPORT_STATS:-no}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-synapse_password}
       REGISTRATION_SHARED_SECRET: ${REGISTRATION_SHARED_SECRET:-}
-      TRUSTED_KEY_SERVERS: '["https://matrix.org"]'
-      # Family-safe defaults
+      # Ensure TRUSTED_KEY_SERVERS is a string that sed can insert directly.
+      # Example: '["matrix.org","server.name"]'. Default: '["matrix.org"]'
+      TRUSTED_KEY_SERVERS: '${TRUSTED_KEY_SERVERS:-[\"matrix.org\"]}'
       ENABLE_REGISTRATION: ${ENABLE_REGISTRATION:-false}
       ALLOW_GUEST_ACCESS: ${ALLOW_GUEST_ACCESS:-false}
       URL_PREVIEW_ENABLED: ${URL_PREVIEW_ENABLED:-false}
@@ -71,66 +72,78 @@ services:
       timeout: 5s
       retries: 3
     command: |
-      bash -c "
-        # Generate the initial config file if it doesn't exist
+      sh -c '
         if [ ! -f /data/homeserver.yaml ]; then
+          echo "Generating Synapse homeserver.yaml..."
           python -m synapse.app.homeserver \
-            --server-name $${SYNAPSE_SERVER_NAME} \
+            --server-name "${SYNAPSE_SERVER_NAME}" \
             --config-path /data/homeserver.yaml \
             --generate-config \
-            --report-stats=$${SYNAPSE_REPORT_STATS}
-          
-          # Update the generated config to use PostgreSQL
-          sed -i 's/sqlite3/psycopg2/' /data/homeserver.yaml
-          sed -i 's/database: .*/database: synapse/' /data/homeserver.yaml
-          sed -i 's/name: sqlite3/name: psycopg2/' /data/homeserver.yaml
-          
-          # Add database connection settings
-          echo '  user: synapse' >> /data/homeserver.yaml
-          echo '  password: '\"$${POSTGRES_PASSWORD}\" >> /data/homeserver.yaml
-          echo '  host: postgres' >> /data/homeserver.yaml
-          echo '  cp_min: 5' >> /data/homeserver.yaml
-          echo '  cp_max: 10' >> /data/homeserver.yaml
-          
-          # Add redis config
-          echo 'redis:' >> /data/homeserver.yaml
-          echo '  enabled: true' >> /data/homeserver.yaml
-          echo '  host: redis' >> /data/homeserver.yaml
-          echo '  port: 6379' >> /data/homeserver.yaml
+            --report-stats="${SYNAPSE_REPORT_STATS}"
 
-          # Configure turn server
-          echo 'turn_uris:' >> /data/homeserver.yaml
-          echo '  - turns:$${SYNAPSE_SERVER_NAME}?transport=udp' >> /data/homeserver.yaml
-          echo '  - turns:$${SYNAPSE_SERVER_NAME}?transport=tcp' >> /data/homeserver.yaml
-          echo '  - turn:$${SYNAPSE_SERVER_NAME}?transport=udp' >> /data/homeserver.yaml
-          echo '  - turn:$${SYNAPSE_SERVER_NAME}?transport=tcp' >> /data/homeserver.yaml
-          echo 'turn_user_lifetime: 86400000' >> /data/homeserver.yaml
-          echo 'turn_allow_guests: true' >> /data/homeserver.yaml
-          echo 'turn_shared_secret: ${COTURN_STATIC_AUTH_SECRET:-turn_secret}' >> /data/homeserver.yaml
+          echo "Updating homeserver.yaml for PostgreSQL..."
+          TMP_CONFIG="/data/homeserver.yaml.tmp"
+          # Correctly pass password to awk and escape awk '''s for sh -c '''...'''.
+          awk -v pg_password="${POSTGRES_PASSWORD}" '''
+            BEGIN {p=1}
+            /^database:/ {
+              print "database:"; print "  name: psycopg2"; print "  args:";
+              print "    user: synapse"; print "    password: " pg_password;
+              print "    database: synapse"; print "    host: postgres";
+              print "    cp_min: 5"; print "    cp_max: 10";
+              p=0
+            }
+            /^(  args:|  user:|  password:|  database:|  host:|  cp_min:|  cp_max:)/ {next}
+            /^  name: sqlite3/ {next}
+            {if(p)print}
+            /^[a-zA-Z_]+:/ {p=1}
+          ''' /data/homeserver.yaml > "${TMP_CONFIG}" && mv "${TMP_CONFIG}" /data/homeserver.yaml
 
-          # Add registration shared secret if provided
-          if [ ! -z \"$${REGISTRATION_SHARED_SECRET}\" ]; then
-            echo 'registration_shared_secret: '\"$${REGISTRATION_SHARED_SECRET}\" >> /data/homeserver.yaml
+          echo "Adding Redis configuration to homeserver.yaml..."
+          {
+            echo "redis:"
+            echo "  enabled: true"
+            echo "  host: redis"
+            echo "  port: 6379"
+          } >> /data/homeserver.yaml
+
+          echo "Adding TURN server configuration to homeserver.yaml..."
+          {
+            echo "turn_uris:"
+            # For literal single quotes in YAML output by echo, use ''' (end sh quote, literal quote, start sh quote)
+            echo "  - '''turn:${SYNAPSE_SERVER_NAME}:3478?transport=udp'''"
+            echo "  - '''turn:${SYNAPSE_SERVER_NAME}:3478?transport=tcp'''"
+            echo "turn_user_lifetime: 86400000"
+            echo "turn_allow_guests: true"
+            echo "turn_shared_secret: '''${COTURN_STATIC_AUTH_SECRET:-turn_secret}'''"
+          } >> /data/homeserver.yaml
+
+          if [ -n "${REGISTRATION_SHARED_SECRET}" ]; then
+            echo "Adding registration_shared_secret to homeserver.yaml..."
+            echo "registration_shared_secret: '''${REGISTRATION_SHARED_SECRET}'''" >> /data/homeserver.yaml
           fi
+
+          echo "Updating trusted_key_servers in homeserver.yaml..."
+          # Use double quotes for sed script to allow ${VAR} expansion.
+          # TRUSTED_KEY_SERVERS should be a string like '["server1","server2"]'.
+          sed -i "s|^trusted_key_servers:.*|trusted_key_servers: ${TRUSTED_KEY_SERVERS}|" /data/homeserver.yaml
+
+          echo "Applying family-safe defaults to homeserver.yaml..."
+          sed -i "s/^enable_registration:.*/enable_registration: ${ENABLE_REGISTRATION:-false}/" /data/homeserver.yaml
+          sed -i "s/^allow_guest_access:.*/allow_guest_access: ${ALLOW_GUEST_ACCESS:-false}/" /data/homeserver.yaml
+          sed -i "s/^url_preview_enabled:.*/url_preview_enabled: ${URL_PREVIEW_ENABLED:-false}/" /data/homeserver.yaml
           
-          # Set up trusted key servers
-          sed -i 's|trusted_key_servers:|trusted_key_servers: '\"$${TRUSTED_KEY_SERVERS}\"|g' /data/homeserver.yaml
-          
-          # Configure family-safe settings
-          sed -i 's/enable_registration: true/enable_registration: '\"$${ENABLE_REGISTRATION}\"'/' /data/homeserver.yaml
-          sed -i 's/allow_guest_access: true/allow_guest_access: '\"$${ALLOW_GUEST_ACCESS}\"'/' /data/homeserver.yaml
-          sed -i 's/url_preview_enabled: false/url_preview_enabled: '\"$${URL_PREVIEW_ENABLED}\"'/' /data/homeserver.yaml
-          
-          if [ \"$${REQUIRE_IDENTITY_SERVER}\" = \"true\" ]; then
-            sed -i 's/require_identity_server: false/require_identity_server: true/' /data/homeserver.yaml
+          # For sed scripts with fixed strings, use ''' to escape for sh -c.
+          if [ "${REQUIRE_IDENTITY_SERVER:-false}" = "true" ]; then
+            sed -i '''s/require_identity_server: false/require_identity_server: true/''' /data/homeserver.yaml
           else
-            sed -i 's/require_identity_server: true/require_identity_server: false/' /data/homeserver.yaml
+            sed -i '''s/require_identity_server: true/require_identity_server: false/''' /data/homeserver.yaml
           fi
+          echo "Synapse configuration complete."
         fi
-        
-        # Start the Synapse server
+        echo "Starting Synapse..."
         exec python -m synapse.app.homeserver --config-path /data/homeserver.yaml
-      "
+      '
 
   coturn:
     image: coturn/coturn:latest
@@ -138,17 +151,15 @@ services:
     environment:
       STATIC_AUTH_SECRET: ${COTURN_STATIC_AUTH_SECRET:-turn_secret}
       SYNAPSE_SERVER_NAME: ${SYNAPSE_SERVER_NAME:-matrix.example.com}
-      COTURN_EXTERNAL_IP: ${COTURN_EXTERNAL_IP:-auto}
+      COTURN_EXTERNAL_IP: ${COTURN_EXTERNAL_IP:-auto} 
       COTURN_MIN_PORT: ${COTURN_MIN_PORT:-49152}
-      COTURN_MAX_PORT: ${COTURN_MAX_PORT:-49172} # Default to a range
+      COTURN_MAX_PORT: ${COTURN_MAX_PORT:-49172}
       COTURN_PORT: ${COTURN_PORT:-3478}
       COTURN_TLS_PORT: ${COTURN_TLS_PORT:-5349}
     volumes:
       - coturn_data:/var/lib/coturn
     ports:
-      # Relay port range UDP
       - "${COTURN_MIN_PORT:-49152}-${COTURN_MAX_PORT:-49172}:${COTURN_MIN_PORT:-49152}-${COTURN_MAX_PORT:-49172}/udp"
-      # Standard TURN/TURNS ports
       - "${COTURN_PORT:-3478}:3478/udp"
       - "${COTURN_PORT:-3478}:3478/tcp"
       - "${COTURN_TLS_PORT:-5349}:5349/udp"
@@ -165,46 +176,105 @@ services:
       - "--use-auth-secret"
       - "--static-auth-secret=${COTURN_STATIC_AUTH_SECRET:-turn_secret}"
       - "--realm=${SYNAPSE_SERVER_NAME:-matrix.example.com}"
-      - "--external-ip=${COTURN_EXTERNAL_IP:-auto}" # Corrected: Use ${VAR} for compose substitution
+      - "--no-tls"
+      - "--no-dtls"
+      - "--no-cli"
+      # Conditionally add --external-ip based on COTURN_EXTERNAL_IP value in entrypoint or wrapper script if complex logic needed.
+      # For now, if COTURN_EXTERNAL_IP is set to an IP, it should be passed directly. If 'auto', coturn handles it.
+      # Example: if [ "$COTURN_EXTERNAL_IP" != "auto" ]; then CMD_ARGS="$CMD_ARGS --external-ip=$COTURN_EXTERNAL_IP"; fi
 
   element:
     image: nginx:alpine
     container_name: voice-stack-element
+    environment:
+      SYNAPSE_SERVER_NAME: ${SYNAPSE_SERVER_NAME:-matrix.example.com}
+      ELEMENT_JITSI_DOMAIN: ${ELEMENT_JITSI_DOMAIN:-meet.element.io}
+      ELEMENT_VERSION: ${ELEMENT_VERSION:-v1.11.50}
     volumes:
-      - element_config:/element
+      - element_data:/usr/share/nginx/html
     networks:
       - voice-stack-network
     ports:
       - "${ELEMENT_PORT:-8080}:80"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/config.json"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
-    # Simplified command with no heredoc for more reliable YAML parsing
-    command: >
-      sh -c "mkdir -p /element /usr/share/nginx/html && 
-      if [ ! -d '/element/element-v1.11' ]; then 
-        echo 'Downloading Element Web...' && 
-        cd /tmp && 
-        wget -q https://github.com/vector-im/element-web/releases/latest/download/element-web.tar.gz && 
-        mkdir -p /element/element-v1.11 && 
-        tar -xzf element-web.tar.gz -C /element/element-v1.11 --strip-components=1 && 
-        rm element-web.tar.gz; 
-      fi && 
-      cp -r /element/element-v1.11/* /usr/share/nginx/html/ && 
-      echo '{"default_server_config":{"m.homeserver":{"base_url":"http://synapse:8008","server_name":"${SYNAPSE_SERVER_NAME:-matrix.example.com}"}},"brand":"Family Chat","integrations_ui_url":"","integrations_rest_url":"","integrations_widgets_urls":[],"bug_report_endpoint_url":"","showLabsSettings":false,"features":{"feature_video_rooms":true,"feature_voice_messages":true,"feature_thread":true,"feature_element_call":true},"default_country_code":"US","setting_defaults":{"breadcrumbs":true},"map_style_url":"https://api.maptiler.com/maps/streets/style.json?key=fU3vlMsMn4Jb6dnEIFsx"}' > /usr/share/nginx/html/config.json && 
-      echo 'Element Web configured successfully!' && 
-      exec nginx -g 'daemon off;'"
+    command: |
+      sh -c '
+        ELEMENT_WEB_DIR="/usr/share/nginx/html"
+        CONFIG_JSON_PATH="${ELEMENT_WEB_DIR}/config.json"
 
-networks:
-  voice-stack-network:
-    driver: bridge
-  proxy-bridge:
-    driver: bridge
-    external: false
+        mkdir -p "$ELEMENT_WEB_DIR"
+
+        if [ ! -f "${ELEMENT_WEB_DIR}/index.html" ] || [ ! -f "${CONFIG_JSON_PATH}" ]; then
+          echo "Element web not found or config.json missing. Downloading Element ${ELEMENT_VERSION}..."
+          wget -qO /tmp/element-web.tar.gz "https://github.com/vector-im/element-web/releases/download/${ELEMENT_VERSION}/element-${ELEMENT_VERSION}.tar.gz"
+          
+          rm -rf "${ELEMENT_WEB_DIR:?}/"* 
+          tar -xzf /tmp/element-web.tar.gz -C "$ELEMENT_WEB_DIR" --strip-components=1
+          rm /tmp/element-web.tar.gz
+
+          echo "Creating ${CONFIG_JSON_PATH}..."
+          # Here-document for config.json. No complex quoting needed inside for shell.
+          cat <<EOF > "${CONFIG_JSON_PATH}"
+{
+    "default_server_config": {
+        "m.homeserver": {
+            "base_url": "http://${SYNAPSE_SERVER_NAME}",
+            "server_name": "${SYNAPSE_SERVER_NAME}"
+        },
+        "m.identity_server": {
+            "base_url": "https://vector.im"
+        }
+    },
+    "brand": "Element",
+    "integrations_ui_url": "https://scalar.vector.im/",
+    "integrations_rest_url": "https://scalar.vector.im/api",
+    "integrations_widgets_urls": [
+        "https://scalar.vector.im/api/widgets"
+    ],
+    "hosting_signup_link": "https://element.io/get-started",
+    "bug_report_endpoint_url": "https://element.io/bugreports/submit",
+    "default_country_code": "GB",
+    "show_labs_settings": false,
+    "features": {
+        "feature_groups": "labs",
+        "feature_pinning": "labs",
+        "feature_custom_status": "labs",
+        "feature_custom_tags": "labs",
+        "feature_state_counters": "labs"
+    },
+    "default_theme": "light",
+    "room_directory": {
+        "servers": [
+            "matrix.org"
+        ]
+    },
+    "enable_presence_by_hs_url": {
+        "https://matrix.org": false,
+        "https://matrix-client.matrix.org": false
+    },
+    "setting_defaults": {
+        "breadcrumbs": true,
+        "UIFeature.voipCallExperience": true
+    },
+    "jitsi": {
+        "preferred_domain": "${ELEMENT_JITSI_DOMAIN}"
+    }
+}
+EOF
+          echo "Element configuration complete."
+        else
+          echo "Element web and config.json found. Skipping download and generation."
+        fi
+        
+        echo "Starting Nginx for Element..."
+        exec nginx -g "daemon off;"
+      '
 
 volumes:
   postgres_data:
@@ -212,4 +282,8 @@ volumes:
   synapse_data:
   media_store:
   coturn_data:
-  element_config:
+  element_data:
+
+networks:
+  voice-stack-network:
+    driver: bridge
