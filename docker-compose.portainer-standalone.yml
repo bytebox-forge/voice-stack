@@ -186,8 +186,8 @@ networks:
       config:
         - subnet: 172.20.0.0/16
   proxy-bridge:
-    external: true
-    name: ${ADDITIONAL_NETWORK:-proxy-bridge}
+    driver: bridge
+    external: false
 
 volumes:
   postgres_data:
