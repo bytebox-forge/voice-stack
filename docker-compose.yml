@@ -218,15 +218,13 @@ services:
           
           rm -rf "$${WEB_DIR:?}/"* 
           tar -xzf /tmp/element-web.tar.gz -C "$$WEB_DIR" --strip-components=1
-          rm /tmp/element-web.tar.gz
-
-          echo "Creating $$CONFIG_FILE..."
+          rm /tmp/element-web.tar.gz          echo "Creating $$CONFIG_FILE..."
           # Create config.json using a simpler approach
           cat > "$$CONFIG_FILE" <<EOF
         {
             "default_server_config": {
                 "m.homeserver": {
-                    "base_url": "http://$${SYNAPSE_SERVER_NAME}",
+                    "base_url": "http://$${SYNAPSE_SERVER_NAME}:8008",
                     "server_name": "$${SYNAPSE_SERVER_NAME}"
                 },
                 "m.identity_server": {
