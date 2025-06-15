@@ -26,7 +26,7 @@ A complete, family-friendly voice and chat server stack using Matrix Synapse, El
 
 1. **Create new stack** in Portainer
 2. **Repository URL**: `https://github.com/anykolaiszyn/voice-stack.git`
-3. **Compose Path**: `docker-compose.portainer-standalone.yml`
+3. **Compose Path**: `docker-compose.yml`
 4. **Set environment variables** (see Configuration below)
 5. **Deploy**
 
@@ -39,15 +39,18 @@ A complete, family-friendly voice and chat server stack using Matrix Synapse, El
 ```bash
 git clone https://github.com/anykolaiszyn/voice-stack.git
 cd voice-stack
-cp .env.example .env
-# Edit .env with your settings
+# The repo includes a ready-to-use .env file
+# Edit .env with your own settings
 docker-compose up -d
 ```
 
 ## Recent Improvements
 
 - **June 15, 2025**: Fixed Element Web configuration loop issue by replacing with nginx-based solution
-- **June 15, 2025**: Added comprehensive diagnostic tools for troubleshooting
+- **June 15, 2025**: Fixed "Invalid configuration: no default server specified" error
+- **June 15, 2025**: Consolidated to a single docker-compose file for true one-click deployment
+- **June 15, 2025**: Simplified repository structure by removing redundant files
+- **June 15, 2025**: Improved environment variable handling and documentation
 - **June 15, 2025**: Improved documentation for registration tokens, port configuration, and troubleshooting
 - **June 15, 2025**: Cleaned up repository, consolidated to a single Docker Compose file
 - **June 15, 2025**: Fixed all network, volume, and environment variable configurations

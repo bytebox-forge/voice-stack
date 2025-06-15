@@ -9,7 +9,7 @@ This is the simplest way to deploy your family voice stack with token-based regi
 1. **Go to Portainer** → **Stacks** → **Add Stack**
 2. **Name**: `voice-stack`
 3. **Repository URL**: `https://github.com/anykolaiszyn/voice-stack.git`
-4. **Compose Path**: `docker-compose.portainer-standalone.yml`
+4. **Compose Path**: `docker-compose.yml`
 
 ### 2. Set Environment Variables
 

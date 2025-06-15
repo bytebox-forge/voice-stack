@@ -35,8 +35,8 @@ If settings are incorrect, restart the entire stack:
 ```bash
 # In Portainer: Stack → voice-stack → Stop → Start
 # Or via command line:
-docker-compose -f docker-compose.portainer-standalone.yml down
-docker-compose -f docker-compose.portainer-standalone.yml up -d
+docker-compose down
+docker-compose up -d
 ```
 
 **Step 3: Manually Fix Configuration**

@@ -6,7 +6,7 @@ The voice stack can be integrated with reverse proxy managers like Nginx Proxy M
 
 ## Default Port Mapping
 
-The `docker-compose.portainer-standalone.yml` exposes these ports by default:
+The `docker-compose.yml` exposes these ports by default:
 
 | Service | Port | Purpose |
 |---------|------|---------|
@@ -92,7 +92,7 @@ If you prefer to modify the Docker Compose file directly:
 
 ### Step 1: Add External Network Support
 
-You can modify the `docker-compose.portainer-standalone.yml` to support external networks by adding this to each service:
+You can modify the `docker-compose.yml` to support external networks by adding this to each service:
 
 ```yaml
 networks:

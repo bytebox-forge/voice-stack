@@ -1,8 +1,38 @@
-# Connection Refused Troubleshooting Guide
+# Connection Troubleshooting Guide
 
-This guide helps resolve "connection refused" errors when accessing your Voice Stack services.
+This guide helps resolve connection issues when accessing your Voice Stack services.
 
-## Quick Diagnosis
+## Quick Diagnosis Commands
+
+If you're experiencing connection issues, run these commands to quickly diagnose the problem:
+
+```bash
+# 1. Check all voice-stack containers and their status
+docker ps --filter "name=voice-stack" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+# 2. Test if Synapse is responding
+curl -I http://localhost:8008
+# Or test the API endpoint
+curl http://localhost:8008/_matrix/client/versions
+
+# 3. Check Synapse logs if there are issues
+docker logs voice-stack-synapse | tail -50
+
+# 4. Test Element Web access
+curl -I http://localhost:8080
+
+# 5. Test internal container communication
+docker exec voice-stack-element wget -q --spider http://synapse:8008/_matrix/client/versions
+echo $?  # Should return 0 if successful
+
+# Quick fix: Restart just the Synapse container
+docker restart voice-stack-synapse
+
+# Or restart the entire stack
+docker-compose restart
+```
+
+## Detailed Troubleshooting
 
 ### Step 1: Check Container Status
 
@@ -61,7 +91,7 @@ This happens when the config.json file doesn't have the proper `default_server_c
 **Solution:**
 
 **A) Update to the Latest Version:**
-The latest version (June 15, 2025) has improved environment variable handling that fixes this issue automatically. Make sure you're using the latest docker-compose.portainer-standalone.yml file.
+The latest version (June 15, 2025) has improved environment variable handling that fixes this issue automatically. Make sure you're using the latest docker-compose.yml file.
 
 **B) If Still Experiencing Issues, Check Configuration Manually:**
 ```bash
@@ -179,13 +209,13 @@ docker network inspect voice-stack_voice-stack-network
 **A) Restart Docker Networks:**
 ```bash
 # Stop the stack
-docker-compose -f docker-compose.portainer-standalone.yml down
+docker-compose down
 
 # Remove networks
 docker network prune
 
 # Start the stack
-docker-compose -f docker-compose.portainer-standalone.yml up -d
+docker-compose up -d
 ```
 
 ### 🔧 Issue 5: Port Binding Issues
@@ -274,7 +304,7 @@ If all else fails, perform a complete reset:
 ```bash
 # In Portainer: Stack → voice-stack → Stop
 # Or via command line:
-docker-compose -f docker-compose.portainer-standalone.yml down
+docker-compose down
 ```
 
 ### Step 2: Clean Up (Optional - Removes Data)
@@ -290,13 +320,13 @@ docker network prune -f
 ```bash
 # In Portainer: Stack → voice-stack → Start
 # Or via command line:
-docker-compose -f docker-compose.portainer-standalone.yml up -d
+docker-compose up -d
 ```
 
 ### Step 4: Wait and Monitor
 ```bash
 # Watch containers start up
-docker-compose -f docker-compose.portainer-standalone.yml logs -f
+docker-compose logs -f
 ```
 
 ## Verification Steps
@@ -322,7 +352,7 @@ curl http://localhost:8080
 ### 3. Check Logs
 ```bash
 # Look for any remaining errors
-docker-compose -f docker-compose.portainer-standalone.yml logs | grep -i error
+docker-compose logs | grep -i error
 ```
 
 ## Environment Variables Check
