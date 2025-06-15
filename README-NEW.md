@@ -91,6 +91,7 @@ After deployment, access your services at:
 - **[`PORTAINER-SIMPLE.md`](PORTAINER-SIMPLE.md)** - Complete Portainer deployment guide
 - **[`ADMIN-SETUP.md`](ADMIN-SETUP.md)** - Creating your first admin account  
 - **[`REGISTRATION-TOKENS.md`](REGISTRATION-TOKENS.md)** - User registration control
+- **[`CONNECTION-TROUBLESHOOTING.md`](CONNECTION-TROUBLESHOOTING.md)** - Fix connection refused errors
 - **[`FAMILY-SAFE-TROUBLESHOOTING.md`](FAMILY-SAFE-TROUBLESHOOTING.md)** - Fix privacy and security issues
 - **[`REVERSE-PROXY.md`](REVERSE-PROXY.md)** - Custom domains with NPM/Traefik
 - **[`NPM-QUICK-CONNECT.md`](NPM-QUICK-CONNECT.md)** - Nginx Proxy Manager integration
