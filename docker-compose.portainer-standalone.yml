@@ -55,13 +55,15 @@ services:
       - redis
     networks:
       - voice-stack-network
-      - proxy-bridge    ports:
+      - proxy-bridge
+    ports:
       - "8008:8008"
     restart: unless-stopped
     entrypoint: >
       sh -c "
         if [ ! -f /data/homeserver.yaml ]; then
-          python -m synapse.app.homeserver --server-name=$${SYNAPSE_SERVER_NAME} --config-path=/data/homeserver.yaml --generate-config --data-directory=/data --report-stats=no &&          if [ -n \"$${REGISTRATION_TOKEN}\" ]; then
+          python -m synapse.app.homeserver --server-name=$${SYNAPSE_SERVER_NAME} --config-path=/data/homeserver.yaml --generate-config --data-directory=/data --report-stats=no &&
+          if [ -n \"$${REGISTRATION_TOKEN}\" ]; then
             echo 'Setting up token-based registration...' &&
             sed -i 's/#enable_registration: false/enable_registration: true/' /data/homeserver.yaml &&
             sed -i 's/#registration_requires_token: false/registration_requires_token: true/' /data/homeserver.yaml &&
@@ -71,7 +73,8 @@ services:
             sed -i 's/#enable_registration: false/enable_registration: false/' /data/homeserver.yaml &&
             echo 'enable_registration: false' >> /data/homeserver.yaml &&
             echo 'registration_requires_token: true' >> /data/homeserver.yaml
-          fi &&sed -i 's/#registration_shared_secret:.*/registration_shared_secret: \"$${REGISTRATION_SECRET}\"/' /data/homeserver.yaml &&
+          fi &&
+          sed -i 's/#registration_shared_secret:.*/registration_shared_secret: \"$${REGISTRATION_SECRET}\"/' /data/homeserver.yaml &&
           echo 'Family-safe configuration settings...' &&
           echo 'allow_public_rooms_over_federation: false' >> /data/homeserver.yaml &&
           echo 'allow_public_rooms_without_auth: false' >> /data/homeserver.yaml &&
