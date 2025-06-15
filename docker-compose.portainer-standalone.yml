@@ -55,9 +55,8 @@ services:
       - redis
     networks:
       - voice-stack-network
-      - proxy-bridge
-    ports:
-      - "8008:8008"
+      - proxy-bridge    ports:
+      - "${SYNAPSE_PORT:-8008}:8008"
     restart: unless-stopped
     entrypoint: >
       sh -c "
@@ -116,10 +115,10 @@ services:
     image: coturn/coturn:latest
     container_name: voice-stack-coturn
     ports:
-      - "3478:3478/udp"
-      - "3478:3478/tcp"
-      - "5349:5349/udp"
-      - "5349:5349/tcp"
+      - "${TURN_PORT:-3478}:3478/udp"
+      - "${TURN_PORT:-3478}:3478/tcp"
+      - "${TURNS_PORT:-5349}:5349/udp"
+      - "${TURNS_PORT:-5349}:5349/tcp"
       - "49152-49172:49152-49172/udp"
     environment:
       TURN_SECRET: ${TURN_SECRET:-change_me}
@@ -174,9 +173,8 @@ services:
       - synapse  
     networks:
       - voice-stack-network
-      - proxy-bridge
-    ports:
-      - "8080:80"
+      - proxy-bridge    ports:
+      - "${ELEMENT_PORT:-8080}:80"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
@@ -188,9 +186,6 @@ services:
 networks:
   voice-stack-network:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
   proxy-bridge:
     driver: bridge
     external: false
