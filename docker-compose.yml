@@ -35,10 +35,10 @@ services:
       retries: 5
     ports:
       - "${REDIS_PORT:-6379}:6379"
-
   synapse:
     image: matrixdotorg/synapse:latest
     container_name: voice-stack-synapse
+    entrypoint: []
     environment:
       SYNAPSE_CONFIG_DIR: /data
       SYNAPSE_CONFIG_PATH: /data/homeserver.yaml
@@ -207,67 +207,68 @@ services:
       - -c
       - |
         set -e
-        ELEMENT_WEB_DIR="/usr/share/nginx/html"
-        CONFIG_JSON_PATH="${ELEMENT_WEB_DIR}/config.json"
+        WEB_DIR="/usr/share/nginx/html"
+        CONFIG_FILE="$${WEB_DIR}/config.json"
 
-        mkdir -p "$ELEMENT_WEB_DIR"
+        mkdir -p "$$WEB_DIR"
 
-        if [ ! -f "${ELEMENT_WEB_DIR}/index.html" ] || [ ! -f "${CONFIG_JSON_PATH}" ]; then
-          echo "Element web not found or config.json missing. Downloading Element ${ELEMENT_VERSION}..."
-          wget -qO /tmp/element-web.tar.gz "https://github.com/vector-im/element-web/releases/download/${ELEMENT_VERSION}/element-${ELEMENT_VERSION}.tar.gz"
+        if [ ! -f "$${WEB_DIR}/index.html" ] || [ ! -f "$$CONFIG_FILE" ]; then
+          echo "Element web not found or config.json missing. Downloading Element $${ELEMENT_VERSION}..."
+          wget -qO /tmp/element-web.tar.gz "https://github.com/vector-im/element-web/releases/download/$${ELEMENT_VERSION}/element-$${ELEMENT_VERSION}.tar.gz"
           
-          rm -rf "${ELEMENT_WEB_DIR:?}/"* 
-          tar -xzf /tmp/element-web.tar.gz -C "$ELEMENT_WEB_DIR" --strip-components=1
+          rm -rf "$${WEB_DIR:?}/"* 
+          tar -xzf /tmp/element-web.tar.gz -C "$$WEB_DIR" --strip-components=1
           rm /tmp/element-web.tar.gz
 
-          echo "Creating ${CONFIG_JSON_PATH}..."
-          # Rebuilding config.json with echo.
-          # Double quotes for echo strings with env vars, single for fixed strings.
-          echo '{' > "${CONFIG_JSON_PATH}"
-          echo '    "default_server_config": {' >> "${CONFIG_JSON_PATH}"
-          echo '        "m.homeserver": {' >> "${CONFIG_JSON_PATH}"
-          echo "            \\"base_url\\": \\"http://${SYNAPSE_SERVER_NAME}\\", " >> "${CONFIG_JSON_PATH}"
-          echo "            \\"server_name\\": \\"${SYNAPSE_SERVER_NAME}\\"" >> "${CONFIG_JSON_PATH}"
-          echo '        },' >> "${CONFIG_JSON_PATH}"
-          echo '        "m.identity_server": {' >> "${CONFIG_JSON_PATH}"
-          echo '            "base_url": "https://vector.im"' >> "${CONFIG_JSON_PATH}"
-          echo '        }' >> "${CONFIG_JSON_PATH}"
-          echo '    },' >> "${CONFIG_JSON_PATH}"
-          echo '    "brand": "Element",' >> "${CONFIG_JSON_PATH}"
-          echo '    "integrations_ui_url": "https://scalar.vector.im/",' >> "${CONFIG_JSON_PATH}"
-          echo '    "integrations_rest_url": "https://scalar.vector.im/api",' >> "${CONFIG_JSON_PATH}"
-          echo '    "integrations_widgets_urls": [' >> "${CONFIG_JSON_PATH}"
-          echo '        "https://scalar.vector.im/api/widgets"' >> "${CONFIG_JSON_PATH}"
-          echo '    ],' >> "${CONFIG_JSON_PATH}"
-          echo '    "hosting_signup_link": "https://element.io/get-started",' >> "${CONFIG_JSON_PATH}"
-          echo '    "bug_report_endpoint_url": "https://element.io/bugreports/submit",' >> "${CONFIG_JSON_PATH}"
-          echo '    "default_country_code": "GB",' >> "${CONFIG_JSON_PATH}"
-          echo '    "show_labs_settings": false,' >> "${CONFIG_JSON_PATH}"
-          echo '    "features": {' >> "${CONFIG_JSON_PATH}"
-          echo '        "feature_groups": "labs",' >> "${CONFIG_JSON_PATH}"
-          echo '        "feature_pinning": "labs",' >> "${CONFIG_JSON_PATH}"
-          echo '        "feature_custom_status": "labs",' >> "${CONFIG_JSON_PATH}"
-          echo '        "feature_custom_tags": "labs",' >> "${CONFIG_JSON_PATH}"
-          echo '        "feature_state_counters": "labs"' >> "${CONFIG_JSON_PATH}"
-          echo '    },' >> "${CONFIG_JSON_PATH}"
-          echo '    "default_theme": "light",' >> "${CONFIG_JSON_PATH}"
-          echo '    "room_directory": {' >> "${CONFIG_JSON_PATH}"
-          echo '        "servers": [' >> "${CONFIG_JSON_PATH}"
-          echo '            "matrix.org"' >> "${CONFIG_JSON_PATH}"
-          echo '        ]' >> "${CONFIG_JSON_PATH}"
-          echo '    },' >> "${CONFIG_JSON_PATH}"
-          echo '    "enable_presence_by_hs_url": {' >> "${CONFIG_JSON_PATH}"
-          echo '        "https://matrix.org": false,' >> "${CONFIG_JSON_PATH}"
-          echo '        "https://matrix-client.matrix.org": false' >> "${CONFIG_JSON_PATH}"
-          echo '    },' >> "${CONFIG_JSON_PATH}"
-          echo '    "setting_defaults": {' >> "${CONFIG_JSON_PATH}"
-          echo '        "breadcrumbs": true,' >> "${CONFIG_JSON_PATH}"
-          echo '        "UIFeature.voipCallExperience": true' >> "${CONFIG_JSON_PATH}"
-          echo '    },' >> "${CONFIG_JSON_PATH}"
-          echo '    "jitsi": {' >> "${CONFIG_JSON_PATH}"
-          echo "        \\"preferred_domain\\": \\"${ELEMENT_JITSI_DOMAIN}\\"" >> "${CONFIG_JSON_PATH}"
-          echo '    }' >> "${CONFIG_JSON_PATH}"
-          echo '}' >> "${CONFIG_JSON_PATH}"
+          echo "Creating $$CONFIG_FILE..."
+          # Create config.json using a simpler approach
+          cat > "$$CONFIG_FILE" <<EOF
+        {
+            "default_server_config": {
+                "m.homeserver": {
+                    "base_url": "http://$${SYNAPSE_SERVER_NAME}",
+                    "server_name": "$${SYNAPSE_SERVER_NAME}"
+                },
+                "m.identity_server": {
+                    "base_url": "https://vector.im"
+                }
+            },
+            "brand": "Element",
+            "integrations_ui_url": "https://scalar.vector.im/",
+            "integrations_rest_url": "https://scalar.vector.im/api",
+            "integrations_widgets_urls": [
+                "https://scalar.vector.im/api/widgets"
+            ],
+            "hosting_signup_link": "https://element.io/get-started",
+            "bug_report_endpoint_url": "https://element.io/bugreports/submit",
+            "default_country_code": "GB",
+            "show_labs_settings": false,
+            "features": {
+                "feature_groups": "labs",
+                "feature_pinning": "labs",
+                "feature_custom_status": "labs",
+                "feature_custom_tags": "labs",
+                "feature_state_counters": "labs"
+            },
+            "default_theme": "light",
+            "room_directory": {
+                "servers": [
+                    "matrix.org"
+                ]
+            },
+            "enable_presence_by_hs_url": {
+                "https://matrix.org": false,
+                "https://matrix-client.matrix.org": false
+            },
+            "setting_defaults": {
+                "breadcrumbs": true,
+                "UIFeature.voipCallExperience": true
+            },
+            "jitsi": {
+                "preferred_domain": "$${ELEMENT_JITSI_DOMAIN}"
+            }
+        }
+        EOF
 
           echo "Element configuration complete."
         else
