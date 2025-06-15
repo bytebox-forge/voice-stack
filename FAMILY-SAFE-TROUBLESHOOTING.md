@@ -62,35 +62,33 @@ supervisorctl restart synapse
 - Room directory shows external rooms
 
 ### Root Cause
-1. Element Web is connecting to matrix.org instead of your server
-2. Federation isn't properly disabled
+1. Element Web is using default configuration that connects to matrix.org
+2. Federation isn't properly disabled in Synapse
 3. Room directory is showing federated results
 
 ### Solution
 
-**Step 1: Check Element Web Connection**
+**Method 1: Manual Element Web Configuration (Recommended)**
 
-1. Open Element Web: `http://your-server:8080`
-2. Look at the login screen - it should show your server name
-3. If it shows "matrix.org", the configuration isn't working
+1. **Access Element Web**: Go to `http://your-server:8080`
+2. **Before logging in**, click the "Edit" button next to the server field
+3. **Change server settings**:
+   - Homeserver URL: `http://your-server-ip:8008`
+   - Identity Server: Leave empty or use `https://vector.im`
+4. **Save settings** and proceed with login
 
-**Step 2: Verify Element Web Configuration**
+**Method 2: Container-based Configuration**
 
-Check if the Element container created its configuration:
-```bash
-# Check Element Web config
-docker exec -it voice-stack-element cat /app/config/config.json
-```
+If you need to enforce the configuration, you can manually configure Element Web:
 
-**Step 3: Manual Element Web Fix**
-
-If configuration is missing, recreate it:
 ```bash
 # Enter Element Web container
-docker exec -it voice-stack-element bash
+docker exec -it voice-stack-element sh
 
-# Create proper configuration
+# Create configuration directory
 mkdir -p /app/config
+
+# Create family-safe configuration
 cat > /app/config/config.json << 'EOF'
 {
   "default_server_config": {
@@ -108,23 +106,31 @@ cat > /app/config/config.json << 'EOF'
 }
 EOF
 
-# Restart nginx
-nginx -s reload
+# Restart the container
+exit
+docker restart voice-stack-element
 ```
 
-**Step 4: Disable Federation in Synapse**
+**Method 3: Verify Synapse Federation Settings**
+
+Ensure Synapse is properly configured to block federation:
 
 ```bash
 # Enter Synapse container
 docker exec -it voice-stack-synapse bash
 
-# Add federation restrictions
+# Check federation settings
+grep -i federation /data/homeserver.yaml
+grep -i "public_rooms" /data/homeserver.yaml
+
+# If settings are missing, add them:
 echo "federation_domain_whitelist: []" >> /data/homeserver.yaml
 echo "allow_public_rooms_over_federation: false" >> /data/homeserver.yaml
 echo "allow_public_rooms_without_auth: false" >> /data/homeserver.yaml
 
 # Restart Synapse
-supervisorctl restart synapse
+exit
+docker restart voice-stack-synapse
 ```
 
 ## Problem: Users Can Find Each Other Globally
