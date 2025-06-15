@@ -6,43 +6,48 @@
 echo "=== Element Web Configuration Diagnostics ==="
 echo ""
 
+# Check if Element Web files exist
+echo "Checking Element Web installation..."
+if [ -f "/usr/share/nginx/html/index.html" ]; then
+  echo "✅ Element Web files exist"
+  ls -la /usr/share/nginx/html | head -n 10
+else
+  echo "❌ Element Web files missing!"
+  echo "Attempting to download Element Web..."
+  
+  if ! command -v wget >/dev/null 2>&1; then
+    echo "Installing wget..."
+    apk add --no-cache wget tar
+  fi
+  
+  cd /tmp
+  wget -qO element.tar.gz https://github.com/vector-im/element-web/releases/download/v1.11.50/element-v1.11.50.tar.gz
+  mkdir -p /usr/share/nginx/html
+  tar -xzf element.tar.gz -C /usr/share/nginx/html --strip-components=1
+  echo "✅ Element Web downloaded and installed"
+fi
+
+echo ""
+
 # Check if config directory exists
 echo "Checking config directory..."
-if [ -d "/app/config" ]; then
-  echo "✅ Config directory exists: /app/config"
-  ls -la /app/config
+if [ -d "/usr/share/nginx/html/config" ]; then
+  echo "✅ Config directory exists"
+  ls -la /usr/share/nginx/html/config
 else
-  echo "❌ Config directory missing: /app/config"
+  echo "❌ Config directory missing!"
   echo "Creating directory..."
-  mkdir -p /app/config
-  chmod 755 /app/config
+  mkdir -p /usr/share/nginx/html/config
 fi
 
 echo ""
 
 # Check if config.json exists
 echo "Checking config.json..."
-if [ -f "/app/config/config.json" ]; then
+if [ -f "/usr/share/nginx/html/config/config.json" ]; then
   echo "✅ config.json exists"
-  echo "File permissions:"
-  ls -la /app/config/config.json
-  
-  echo ""
-  echo "Content validation:"
-  # Check if the file is valid JSON (using grep since jq might not be available)
-  if grep -q "default_server_config" /app/config/config.json; then
-    echo "✅ config.json appears to be valid"
-    
-    # Extract and display important settings
-    echo ""
-    echo "Important settings (extract):"
-    grep -A 3 "server_name" /app/config/config.json
-    grep -A 2 "base_url" /app/config/config.json
-  else
-    echo "❌ config.json may not be valid!"
-    echo "File content (first 20 lines):"
-    head -n 20 /app/config/config.json
-  fi
+  echo "File content:"
+  cat /usr/share/nginx/html/config/config.json
 else
   echo "❌ config.json is missing!"
   echo "Creating a basic config.json file..."
@@ -52,7 +57,7 @@ else
   SYNAPSE_URL=${SYNAPSE_URL:-http://synapse:8008}
   
   # Create a basic config.json
-  cat > /app/config/config.json << EOF
+  cat > /usr/share/nginx/html/config/config.json << EOF
 {
   "default_server_config": {
     "m.homeserver": {
@@ -68,7 +73,6 @@ else
   "brand": "Element"
 }
 EOF
-  chmod 644 /app/config/config.json
   echo "✅ Created basic config.json with server_name: ${SERVER_NAME}"
 fi
 
@@ -109,8 +113,18 @@ echo ""
 echo "=== Manual Fix Instructions ==="
 echo "To manually fix Element Web configuration:"
 echo ""
-echo "1. Create a correct config.json file:"
-echo "   cat > /app/config/config.json << EOF"
+echo "1. Make sure Element Web is installed:"
+echo "   apk add --no-cache wget tar"
+echo "   cd /tmp"
+echo "   wget -qO element.tar.gz https://github.com/vector-im/element-web/releases/download/v1.11.50/element-v1.11.50.tar.gz"
+echo "   mkdir -p /usr/share/nginx/html"
+echo "   tar -xzf element.tar.gz -C /usr/share/nginx/html --strip-components=1"
+echo ""
+echo "2. Create config directory:"
+echo "   mkdir -p /usr/share/nginx/html/config"
+echo ""
+echo "3. Create a correct config.json file:"
+echo "   cat > /usr/share/nginx/html/config/config.json << EOF"
 echo "   {"
 echo "     \"default_server_config\": {"
 echo "       \"m.homeserver\": {"
@@ -127,10 +141,7 @@ echo "     \"brand\": \"Element\""
 echo "   }"
 echo "   EOF"
 echo ""
-echo "2. Set proper permissions:"
-echo "   chmod 644 /app/config/config.json"
-echo ""
-echo "3. Start nginx directly:"
+echo "4. Start nginx:"
 echo "   nginx -g \"daemon off;\""
 echo ""
 echo "=== Diagnostics Complete ==="

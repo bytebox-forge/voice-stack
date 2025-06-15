@@ -47,8 +47,8 @@ docker logs voice-stack-element
 **Common Solutions:**
 
 **A) Ensure You're Using the Latest Version:**
-- The latest version (June 15, 2025) includes a completely redesigned Element Web configuration
-- The new version uses a custom entrypoint that directly starts nginx instead of the default entrypoint
+- The latest version (June 15, 2025) completely replaces the Element Web container with an nginx-based alternative
+- The new approach downloads Element Web directly from GitHub releases
 - Pull the latest version from the repository and redeploy your stack
 
 **B) Check Environment Variables:**
@@ -56,28 +56,14 @@ docker logs voice-stack-element
 - Verify the environment variables are properly passed to the container
 - Try redeploying with these variables explicitly set
 
-**C) Manual Configuration:**
-- If the automatic configuration still fails, you can manually create the config.json file:
+**C) Manual Verification:**
+- You can check if Element Web was downloaded correctly:
 ```bash
-docker exec -it voice-stack-element /bin/sh
-cat > /app/config/config.json << EOF
-{
-  "default_server_config": {
-    "m.homeserver": {
-      "base_url": "http://synapse:8008",
-      "server_name": "YOUR_SERVER_NAME"
-    },
-    "m.identity_server": {
-      "base_url": "https://vector.im"
-    }
-  },
-  "disable_custom_urls": false,
-  "disable_guests": true
-}
-EOF
-chmod 644 /app/config/config.json
-exit
-docker restart voice-stack-element
+docker exec -it voice-stack-element ls -la /usr/share/nginx/html
+```
+- And verify the configuration:
+```bash
+docker exec -it voice-stack-element cat /usr/share/nginx/html/config/config.json
 ```
 
 ### 🔧 Issue 2: Synapse Container Not Starting
