@@ -166,12 +166,12 @@ services:
     image: vectorim/element-web:latest
     container_name: voice-stack-element
     environment:
-      - SERVER_NAME=${SERVER_NAME:-matrix.byte-box.org}
-    depends_on:
+      - SERVER_NAME=${SERVER_NAME:-matrix.byte-box.org}    depends_on:
       - synapse  
     networks:
       - voice-stack-network
-      - proxy-bridge    ports:
+      - proxy-bridge
+    ports:
       - "8080:80"
     restart: unless-stopped
     healthcheck:
