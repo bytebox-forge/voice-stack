@@ -71,7 +71,30 @@ services:
       interval: 15s
       timeout: 5s
       retries: 3
-    command: run
+    command:
+      - sh
+      - -c
+      - |
+        # Generate homeserver.yaml if it doesn't exist
+        if [ ! -f /data/homeserver.yaml ]; then
+          echo "Generating Synapse homeserver.yaml..."
+          python -m synapse.app.homeserver \
+            --server-name "${SYNAPSE_SERVER_NAME}" \
+            --config-path /data/homeserver.yaml \
+            --generate-config \
+            --report-stats="${SYNAPSE_REPORT_STATS}"
+        fi
+        
+        # Fix bind_addresses to allow external connections
+        sed -i "s/bind_addresses: \['::1', '127.0.0.1'\]/bind_addresses: ['0.0.0.0']/" /data/homeserver.yaml
+        
+        # Add suppress_key_server_warning if not present
+        if ! grep -q "suppress_key_server_warning" /data/homeserver.yaml; then
+          echo "suppress_key_server_warning: true" >> /data/homeserver.yaml
+        fi
+        
+        # Start Synapse
+        exec python -m synapse.app.homeserver --config-path /data/homeserver.yaml
 
   coturn:
     image: coturn/coturn:latest
