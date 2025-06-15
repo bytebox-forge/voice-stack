@@ -87,10 +87,17 @@ services:
         
         # Fix bind_addresses to allow external connections
         sed -i "s/bind_addresses: \['::1', '127.0.0.1'\]/bind_addresses: ['0.0.0.0']/" /data/homeserver.yaml
-        
-        # Add suppress_key_server_warning if not present
+          # Add suppress_key_server_warning if not present
         if ! grep -q "suppress_key_server_warning" /data/homeserver.yaml; then
           echo "suppress_key_server_warning: true" >> /data/homeserver.yaml
+        fi
+        
+        # Update registration settings
+        sed -i "s/^enable_registration:.*/enable_registration: ${ENABLE_REGISTRATION}/" /data/homeserver.yaml
+        
+        # Add registration shared secret if provided
+        if [ -n "${REGISTRATION_SHARED_SECRET}" ] && ! grep -q "registration_shared_secret" /data/homeserver.yaml; then
+          echo "registration_shared_secret: \"${REGISTRATION_SHARED_SECRET}\"" >> /data/homeserver.yaml
         fi
         
         # Start Synapse
