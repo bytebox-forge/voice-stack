@@ -1,8 +1,3 @@
-version: '3.8'
-
-# Voice Stack for Portainer - Self-Contained Version
-# This version creates all configuration inline without external files
-
 services:
   postgres:
     image: postgres:15-alpine
@@ -147,8 +142,8 @@ services:
     volumes:
       - coturn_data:/var/lib/coturn
     ports:
-      - "${COTURN_MIN_PORT:-49152}:${COTURN_MIN_PORT:-49152}:udp"
-      - "${COTURN_MAX_PORT:-49152}:${COTURN_MAX_PORT:-49152}:tcp"
+      - "${COTURN_MIN_PORT:-49152}:49152/udp"
+      - "${COTURN_MAX_PORT:-49152}:49152/tcp"
       - "${COTURN_PORT:-3478}:3478/udp"
       - "${COTURN_PORT:-3478}:3478/tcp" 
       - "${COTURN_TLS_PORT:-5349}:5349/udp"
@@ -179,58 +174,21 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-    command: |
-      sh -c "
-        # Create necessary directories
-        mkdir -p /element /usr/share/nginx/html
-        
-        # Download latest Element-Web release if not already downloaded
-        if [ ! -d '/element/element-v1.11' ]; then
-          echo 'Downloading Element Web...'
-          cd /tmp
-          wget -q https://github.com/vector-im/element-web/releases/latest/download/element-web.tar.gz
-          mkdir -p /element/element-v1.11
-          tar -xzf element-web.tar.gz -C /element/element-v1.11 --strip-components=1
-          rm element-web.tar.gz
-        fi
-
-        # Copy Element to nginx web root
-        cp -r /element/element-v1.11/* /usr/share/nginx/html/
-        
-        # Generate config.json based on environment variables
-        cat > /usr/share/nginx/html/config.json <<EOF
-        {
-          \"default_server_config\": {
-            \"m.homeserver\": {
-              \"base_url\": \"https://${SYNAPSE_SERVER_NAME:-matrix.example.com}\",
-              \"server_name\": \"${SYNAPSE_SERVER_NAME:-matrix.example.com}\"
-            }
-          },
-          \"brand\": \"Family Chat\",
-          \"integrations_ui_url\": \"\",
-          \"integrations_rest_url\": \"\",
-          \"integrations_widgets_urls\": [],
-          \"bug_report_endpoint_url\": \"\",
-          \"showLabsSettings\": false,
-          \"features\": {
-            \"feature_video_rooms\": true,
-            \"feature_voice_messages\": true,
-            \"feature_thread\": true,
-            \"feature_element_call\": true
-          },
-          \"default_country_code\": \"US\",
-          \"setting_defaults\": {
-            \"breadcrumbs\": true
-          },
-          \"map_style_url\": \"https://api.maptiler.com/maps/streets/style.json?key=fU3vlMsMn4Jb6dnEIFsx\"
-        }
-EOF
-        
-        echo 'Element Web configured successfully!'
-        
-        # Start nginx
-        exec nginx -g 'daemon off;'
-      "
+    # Simplified command with no heredoc for more reliable YAML parsing
+    command: >
+      sh -c "mkdir -p /element /usr/share/nginx/html && 
+      if [ ! -d '/element/element-v1.11' ]; then 
+        echo 'Downloading Element Web...' && 
+        cd /tmp && 
+        wget -q https://github.com/vector-im/element-web/releases/latest/download/element-web.tar.gz && 
+        mkdir -p /element/element-v1.11 && 
+        tar -xzf element-web.tar.gz -C /element/element-v1.11 --strip-components=1 && 
+        rm element-web.tar.gz; 
+      fi && 
+      cp -r /element/element-v1.11/* /usr/share/nginx/html/ && 
+      echo '{\"default_server_config\":{\"m.homeserver\":{\"base_url\":\"https://${SYNAPSE_SERVER_NAME:-matrix.example.com}\",\"server_name\":\"${SYNAPSE_SERVER_NAME:-matrix.example.com}\"}},\"brand\":\"Family Chat\",\"integrations_ui_url\":\"\",\"integrations_rest_url\":\"\",\"integrations_widgets_urls\":[],\"bug_report_endpoint_url\":\"\",\"showLabsSettings\":false,\"features\":{\"feature_video_rooms\":true,\"feature_voice_messages\":true,\"feature_thread\":true,\"feature_element_call\":true},\"default_country_code\":\"US\",\"setting_defaults\":{\"breadcrumbs\":true},\"map_style_url\":\"https://api.maptiler.com/maps/streets/style.json?key=fU3vlMsMn4Jb6dnEIFsx\"}' > /usr/share/nginx/html/config.json && 
+      echo 'Element Web configured successfully!' && 
+      exec nginx -g 'daemon off;'"
 
 networks:
   voice-stack-network:
