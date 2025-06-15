@@ -46,16 +46,39 @@ docker logs voice-stack-element
 
 **Common Solutions:**
 
-**A) Environment Variable Issue:**
-- Make sure the `SERVER_NAME` environment variable is correctly set in Portainer or your .env file
-- The variable needs to be properly passed to the container
-- Try redeploying with `SERVER_NAME` explicitly set
+**A) Ensure You're Using the Latest Version:**
+- The latest version (June 15, 2025) includes a completely redesigned Element Web configuration
+- The new version uses a custom entrypoint that directly starts nginx instead of the default entrypoint
+- Pull the latest version from the repository and redeploy your stack
 
-**B) Configuration File Generation:**
-- Check if the `sed` command is able to properly replace the domain in config.json
-- Try running this command manually inside the container: `sed -i "s/matrix\\.byte-box\\.org/$SERVER_NAME/g" /app/config/config.json`
-- Verify that `/app/config` directory has proper permissions (this is handled by the `user: root` setting)
-- If necessary, redeploy the stack with updated configurations
+**B) Check Environment Variables:**
+- Make sure both `SERVER_NAME` and `SYNAPSE_URL` environment variables are correctly set
+- Verify the environment variables are properly passed to the container
+- Try redeploying with these variables explicitly set
+
+**C) Manual Configuration:**
+- If the automatic configuration still fails, you can manually create the config.json file:
+```bash
+docker exec -it voice-stack-element /bin/sh
+cat > /app/config/config.json << EOF
+{
+  "default_server_config": {
+    "m.homeserver": {
+      "base_url": "http://synapse:8008",
+      "server_name": "YOUR_SERVER_NAME"
+    },
+    "m.identity_server": {
+      "base_url": "https://vector.im"
+    }
+  },
+  "disable_custom_urls": false,
+  "disable_guests": true
+}
+EOF
+chmod 644 /app/config/config.json
+exit
+docker restart voice-stack-element
+```
 
 ### 🔧 Issue 2: Synapse Container Not Starting
 
