@@ -167,12 +167,12 @@ services:
         cat /tmp/coturn/turnserver.conf &&
         echo 'Starting Coturn server...' &&
         turnserver -c /tmp/coturn/turnserver.conf
-      "
-  element-web:
+      "  element-web:
     image: vectorim/element-web:latest
     container_name: voice-stack-element
     user: root
     environment:
+      - SYNAPSE_URL=http://synapse:8008
       - SERVER_NAME=${SERVER_NAME:-matrix.byte-box.org}
     depends_on:
       - synapse
@@ -184,49 +184,46 @@ services:
     restart: unless-stopped
     volumes:
       - element_config:/app/config
-    command: >
-      sh -c "
-        echo 'Configuring Element Web...' &&
-        mkdir -p /app/config &&
-        chmod 755 /app/config &&
-        cat > /app/config/config.json << 'EOF'
-        {
-          \"default_server_config\": {
-            \"m.homeserver\": {
-              \"base_url\": \"http://synapse:8008\",
-              \"server_name\": \"matrix.byte-box.org\"
-            },
-            \"m.identity_server\": {
-              \"base_url\": \"https://vector.im\"
-            }
+    entrypoint: |
+      /bin/sh -c '
+      echo "Setting up Element Web with server: $SERVER_NAME and URL: $SYNAPSE_URL"
+      mkdir -p /app/config
+      chmod 755 /app/config
+      cat > /app/config/config.json << EOF
+      {
+        "default_server_config": {
+          "m.homeserver": {
+            "base_url": "$SYNAPSE_URL",
+            "server_name": "$SERVER_NAME"
           },
-          \"disable_custom_urls\": false,
-          \"disable_guests\": true,
-          \"disable_login_language_selector\": false,
-          \"disable_3pid_login\": false,
-          \"brand\": \"Element\",
-          \"integrations_ui_url\": \"https://scalar.vector.im/\",
-          \"integrations_rest_url\": \"https://scalar.vector.im/api\",
-          \"integrations_widgets_urls\": [
-            \"https://scalar.vector.im/_matrix/integrations/v1\",
-            \"https://scalar.vector.im/api\",
-            \"https://scalar-staging.vector.im/_matrix/integrations/v1\",
-            \"https://scalar-staging.vector.im/api\",
-            \"https://scalar-staging.riot.im/scalar/api\"
-          ],
-          \"bug_report_endpoint_url\": \"https://element.io/bugreports/submit\",
-          \"uisi_autorageshake_app\": \"element-auto-uisi\",
-          \"showLabsSettings\": true,
-          \"piwik\": false
-        }
-        EOF
-        # Replace server_name with actual SERVER_NAME environment variable
-        sed -i \"s/matrix\\.byte-box\\.org/$SERVER_NAME/g\" /app/config/config.json &&
-        chmod 644 /app/config/config.json &&
-        echo 'Element Web configuration created.' &&
-        echo 'Starting Element Web server...' &&
-        exec /docker-entrypoint.sh
-      "
+          "m.identity_server": {
+            "base_url": "https://vector.im"
+          }
+        },
+        "disable_custom_urls": false,
+        "disable_guests": true,
+        "disable_login_language_selector": false,
+        "disable_3pid_login": false,
+        "brand": "Element",
+        "integrations_ui_url": "https://scalar.vector.im/",
+        "integrations_rest_url": "https://scalar.vector.im/api",
+        "integrations_widgets_urls": [
+          "https://scalar.vector.im/_matrix/integrations/v1",
+          "https://scalar.vector.im/api",
+          "https://scalar-staging.vector.im/_matrix/integrations/v1",
+          "https://scalar-staging.vector.im/api",
+          "https://scalar-staging.riot.im/scalar/api"
+        ],
+        "bug_report_endpoint_url": "https://element.io/bugreports/submit",
+        "uisi_autorageshake_app": "element-auto-uisi",
+        "showLabsSettings": true,
+        "piwik": false
+      }
+      EOF
+      chmod 644 /app/config/config.json
+      echo "Element Web configuration created. Starting web server..."
+      exec nginx -g "daemon off;"
+      '
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
       interval: 30s
