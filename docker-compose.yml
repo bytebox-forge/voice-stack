@@ -72,78 +72,74 @@ services:
       timeout: 5s
       retries: 3
     command: |
-      sh -c '
-        if [ ! -f /data/homeserver.yaml ]; then
-          echo "Generating Synapse homeserver.yaml..."
-          python -m synapse.app.homeserver \
-            --server-name "${SYNAPSE_SERVER_NAME}" \
-            --config-path /data/homeserver.yaml \
-            --generate-config \
-            --report-stats="${SYNAPSE_REPORT_STATS}"
+      if [ ! -f /data/homeserver.yaml ]; then
+        echo "Generating Synapse homeserver.yaml..."
+        python -m synapse.app.homeserver \
+          --server-name "${SYNAPSE_SERVER_NAME}" \
+          --config-path /data/homeserver.yaml \
+          --generate-config \
+          --report-stats="${SYNAPSE_REPORT_STATS}"
 
-          echo "Updating homeserver.yaml for PostgreSQL..."
-          TMP_CONFIG="/data/homeserver.yaml.tmp"
-          # Correctly pass password to awk and escape awk '''s for sh -c '''...'''.
-          awk -v pg_password="${POSTGRES_PASSWORD}" '''
-            BEGIN {p=1}
-            /^database:/ {
-              print "database:"; print "  name: psycopg2"; print "  args:";
-              print "    user: synapse"; print "    password: " pg_password;
-              print "    database: synapse"; print "    host: postgres";
-              print "    cp_min: 5"; print "    cp_max: 10";
-              p=0
-            }
-            /^(  args:|  user:|  password:|  database:|  host:|  cp_min:|  cp_max:)/ {next}
-            /^  name: sqlite3/ {next}
-            {if(p)print}
-            /^[a-zA-Z_]+:/ {p=1}
-          ''' /data/homeserver.yaml > "${TMP_CONFIG}" && mv "${TMP_CONFIG}" /data/homeserver.yaml
+        echo "Updating homeserver.yaml for PostgreSQL..."
+        TMP_CONFIG="/data/homeserver.yaml.tmp"
+        # Awk script is now directly in the shell script, no need for sh -c escaping
+        awk -v pg_password="${POSTGRES_PASSWORD}" '
+          BEGIN {p=1}
+          /^database:/ {
+            print "database:"; print "  name: psycopg2"; print "  args:";
+            print "    user: synapse"; print "    password: " pg_password;
+            print "    database: synapse"; print "    host: postgres";
+            print "    cp_min: 5"; print "    cp_max: 10";
+            p=0
+          }
+          /^(  args:|  user:|  password:|  database:|  host:|  cp_min:|  cp_max:)/ {next}
+          /^  name: sqlite3/ {next}
+          {if(p)print}
+          /^[a-zA-Z_]+:/ {p=1}
+        ' /data/homeserver.yaml > "${TMP_CONFIG}" && mv "${TMP_CONFIG}" /data/homeserver.yaml
 
-          echo "Adding Redis configuration to homeserver.yaml..."
-          {
-            echo "redis:"
-            echo "  enabled: true"
-            echo "  host: redis"
-            echo "  port: 6379"
-          } >> /data/homeserver.yaml
+        echo "Adding Redis configuration to homeserver.yaml..."
+        {
+          echo "redis:"
+          echo "  enabled: true"
+          echo "  host: redis"
+          echo "  port: 6379"
+        } >> /data/homeserver.yaml
 
-          echo "Adding TURN server configuration to homeserver.yaml..."
-          {
-            echo "turn_uris:"
-            # For literal single quotes in YAML output by echo, use ''' (end sh quote, literal quote, start sh quote)
-            echo "  - '''turn:${SYNAPSE_SERVER_NAME}:3478?transport=udp'''"
-            echo "  - '''turn:${SYNAPSE_SERVER_NAME}:3478?transport=tcp'''"
-            echo "turn_user_lifetime: 86400000"
-            echo "turn_allow_guests: true"
-            echo "turn_shared_secret: '''${COTURN_STATIC_AUTH_SECRET:-turn_secret}'''"
-          } >> /data/homeserver.yaml
+        echo "Adding TURN server configuration to homeserver.yaml..."
+        {
+          echo "turn_uris:"
+          # Literal single quotes for YAML are tricky with echo. 
+          # Using printf for more robust quoting.
+          printf "  - ''turn:%s:3478?transport=udp''\n" "${SYNAPSE_SERVER_NAME}" >> /data/homeserver.yaml
+          printf "  - ''turn:%s:3478?transport=tcp''\n" "${SYNAPSE_SERVER_NAME}" >> /data/homeserver.yaml
+          echo "turn_user_lifetime: 86400000" >> /data/homeserver.yaml
+          echo "turn_allow_guests: true" >> /data/homeserver.yaml
+          printf "turn_shared_secret: ''%s''\n" "${COTURN_STATIC_AUTH_SECRET:-turn_secret}" >> /data/homeserver.yaml
+        } >> /data/homeserver.yaml # This was an error, should append to homeserver.yaml
 
-          if [ -n "${REGISTRATION_SHARED_SECRET}" ]; then
-            echo "Adding registration_shared_secret to homeserver.yaml..."
-            echo "registration_shared_secret: '''${REGISTRATION_SHARED_SECRET}'''" >> /data/homeserver.yaml
-          fi
-
-          echo "Updating trusted_key_servers in homeserver.yaml..."
-          # Use double quotes for sed script to allow ${VAR} expansion.
-          # TRUSTED_KEY_SERVERS should be a string like '["server1","server2"]'.
-          sed -i "s|^trusted_key_servers:.*|trusted_key_servers: ${TRUSTED_KEY_SERVERS}|" /data/homeserver.yaml
-
-          echo "Applying family-safe defaults to homeserver.yaml..."
-          sed -i "s/^enable_registration:.*/enable_registration: ${ENABLE_REGISTRATION:-false}/" /data/homeserver.yaml
-          sed -i "s/^allow_guest_access:.*/allow_guest_access: ${ALLOW_GUEST_ACCESS:-false}/" /data/homeserver.yaml
-          sed -i "s/^url_preview_enabled:.*/url_preview_enabled: ${URL_PREVIEW_ENABLED:-false}/" /data/homeserver.yaml
-          
-          # For sed scripts with fixed strings, use ''' to escape for sh -c.
-          if [ "${REQUIRE_IDENTITY_SERVER:-false}" = "true" ]; then
-            sed -i '''s/require_identity_server: false/require_identity_server: true/''' /data/homeserver.yaml
-          else
-            sed -i '''s/require_identity_server: true/require_identity_server: false/''' /data/homeserver.yaml
-          fi
-          echo "Synapse configuration complete."
+        if [ -n "${REGISTRATION_SHARED_SECRET}" ]; then
+          echo "Adding registration_shared_secret to homeserver.yaml..."
+          printf "registration_shared_secret: ''%s''\n" "${REGISTRATION_SHARED_SECRET}" >> /data/homeserver.yaml
         fi
-        echo "Starting Synapse..."
-        exec python -m synapse.app.homeserver --config-path /data/homeserver.yaml
-      '
+
+        echo "Updating trusted_key_servers in homeserver.yaml..."
+        sed -i "s|^trusted_key_servers:.*|trusted_key_servers: ${TRUSTED_KEY_SERVERS}|" /data/homeserver.yaml
+
+        echo "Applying family-safe defaults to homeserver.yaml..."
+        sed -i "s/^enable_registration:.*/enable_registration: ${ENABLE_REGISTRATION:-false}/" /data/homeserver.yaml
+        sed -i "s/^allow_guest_access:.*/allow_guest_access: ${ALLOW_GUEST_ACCESS:-false}/" /data/homeserver.yaml
+        sed -i "s/^url_preview_enabled:.*/url_preview_enabled: ${URL_PREVIEW_ENABLED:-false}/" /data/homeserver.yaml
+        
+        if [ "${REQUIRE_IDENTITY_SERVER:-false}" = "true" ]; then
+          sed -i 's/require_identity_server: false/require_identity_server: true/' /data/homeserver.yaml
+        else
+          sed -i 's/require_identity_server: true/require_identity_server: false/' /data/homeserver.yaml
+        fi
+        echo "Synapse configuration complete."
+      fi
+      echo "Starting Synapse..."
+      exec python -m synapse.app.homeserver --config-path /data/homeserver.yaml
 
   coturn:
     image: coturn/coturn:latest
@@ -204,76 +200,75 @@ services:
       retries: 3
       start_period: 60s
     command: |
-      sh -c '
-        ELEMENT_WEB_DIR="/usr/share/nginx/html"
-        CONFIG_JSON_PATH="${ELEMENT_WEB_DIR}/config.json"
+      set -e
+      ELEMENT_WEB_DIR="/usr/share/nginx/html"
+      CONFIG_JSON_PATH="${ELEMENT_WEB_DIR}/config.json"
 
-        mkdir -p "$ELEMENT_WEB_DIR"
+      mkdir -p "$ELEMENT_WEB_DIR"
 
-        if [ ! -f "${ELEMENT_WEB_DIR}/index.html" ] || [ ! -f "${CONFIG_JSON_PATH}" ]; then
-          echo "Element web not found or config.json missing. Downloading Element ${ELEMENT_VERSION}..."
-          wget -qO /tmp/element-web.tar.gz "https://github.com/vector-im/element-web/releases/download/${ELEMENT_VERSION}/element-${ELEMENT_VERSION}.tar.gz"
-          
-          rm -rf "${ELEMENT_WEB_DIR:?}/"* 
-          tar -xzf /tmp/element-web.tar.gz -C "$ELEMENT_WEB_DIR" --strip-components=1
-          rm /tmp/element-web.tar.gz
-
-          echo "Creating ${CONFIG_JSON_PATH}..."
-          # Here-document for config.json. No complex quoting needed inside for shell.
-          cat <<EOF > "${CONFIG_JSON_PATH}"
-{
-    "default_server_config": {
-        "m.homeserver": {
-            "base_url": "http://${SYNAPSE_SERVER_NAME}",
-            "server_name": "${SYNAPSE_SERVER_NAME}"
-        },
-        "m.identity_server": {
-            "base_url": "https://vector.im"
-        }
-    },
-    "brand": "Element",
-    "integrations_ui_url": "https://scalar.vector.im/",
-    "integrations_rest_url": "https://scalar.vector.im/api",
-    "integrations_widgets_urls": [
-        "https://scalar.vector.im/api/widgets"
-    ],
-    "hosting_signup_link": "https://element.io/get-started",
-    "bug_report_endpoint_url": "https://element.io/bugreports/submit",
-    "default_country_code": "GB",
-    "show_labs_settings": false,
-    "features": {
-        "feature_groups": "labs",
-        "feature_pinning": "labs",
-        "feature_custom_status": "labs",
-        "feature_custom_tags": "labs",
-        "feature_state_counters": "labs"
-    },
-    "default_theme": "light",
-    "room_directory": {
-        "servers": [
-            "matrix.org"
-        ]
-    },
-    "enable_presence_by_hs_url": {
-        "https://matrix.org": false,
-        "https://matrix-client.matrix.org": false
-    },
-    "setting_defaults": {
-        "breadcrumbs": true,
-        "UIFeature.voipCallExperience": true
-    },
-    "jitsi": {
-        "preferred_domain": "${ELEMENT_JITSI_DOMAIN}"
-    }
-}
-EOF
-          echo "Element configuration complete."
-        else
-          echo "Element web and config.json found. Skipping download and generation."
-        fi
+      if [ ! -f "${ELEMENT_WEB_DIR}/index.html" ] || [ ! -f "${CONFIG_JSON_PATH}" ]; then
+        echo "Element web not found or config.json missing. Downloading Element ${ELEMENT_VERSION}..."
+        wget -qO /tmp/element-web.tar.gz "https://github.com/vector-im/element-web/releases/download/${ELEMENT_VERSION}/element-${ELEMENT_VERSION}.tar.gz"
         
-        echo "Starting Nginx for Element..."
-        exec nginx -g "daemon off;"
+        rm -rf "${ELEMENT_WEB_DIR:?}/"* 
+        tar -xzf /tmp/element-web.tar.gz -C "$ELEMENT_WEB_DIR" --strip-components=1
+        rm /tmp/element-web.tar.gz
+
+        echo "Creating ${CONFIG_JSON_PATH}..."
+        # Rebuilding config.json with echo and careful quoting
+        echo '{' > "${CONFIG_JSON_PATH}"
+        echo '    "default_server_config": {' >> "${CONFIG_JSON_PATH}"
+        echo '        "m.homeserver": {' >> "${CONFIG_JSON_PATH}"
+        echo '            "base_url": "http://${SYNAPSE_SERVER_NAME}",' >> "${CONFIG_JSON_PATH}"
+        echo '            "server_name": "${SYNAPSE_SERVER_NAME}"' >> "${CONFIG_JSON_PATH}"
+        echo '        },' >> "${CONFIG_JSON_PATH}"
+        echo '        "m.identity_server": {' >> "${CONFIG_JSON_PATH}"
+        echo '            "base_url": "https://vector.im"' >> "${CONFIG_JSON_PATH}"
+        echo '        }' >> "${CONFIG_JSON_PATH}"
+        echo '    },' >> "${CONFIG_JSON_PATH}"
+        echo '    "brand": "Element",' >> "${CONFIG_JSON_PATH}"
+        echo '    "integrations_ui_url": "https://scalar.vector.im/",' >> "${CONFIG_JSON_PATH}"
+        echo '    "integrations_rest_url": "https://scalar.vector.im/api",' >> "${CONFIG_JSON_PATH}"
+        echo '    "integrations_widgets_urls": [' >> "${CONFIG_JSON_PATH}"
+        echo '        "https://scalar.vector.im/api/widgets"' >> "${CONFIG_JSON_PATH}"
+        echo '    ],' >> "${CONFIG_JSON_PATH}"
+        echo '    "hosting_signup_link": "https://element.io/get-started",' >> "${CONFIG_JSON_PATH}"
+        echo '    "bug_report_endpoint_url": "https://element.io/bugreports/submit",' >> "${CONFIG_JSON_PATH}"
+        echo '    "default_country_code": "GB",' >> "${CONFIG_JSON_PATH}"
+        echo '    "show_labs_settings": false,' >> "${CONFIG_JSON_PATH}"
+        echo '    "features": {' >> "${CONFIG_JSON_PATH}"
+        echo '        "feature_groups": "labs",' >> "${CONFIG_JSON_PATH}"
+        echo '        "feature_pinning": "labs",' >> "${CONFIG_JSON_PATH}"
+        echo '        "feature_custom_status": "labs",' >> "${CONFIG_JSON_PATH}"
+        echo '        "feature_custom_tags": "labs",' >> "${CONFIG_JSON_PATH}"
+        echo '        "feature_state_counters": "labs"' >> "${CONFIG_JSON_PATH}"
+        echo '    },' >> "${CONFIG_JSON_PATH}"
+        echo '    "default_theme": "light",' >> "${CONFIG_JSON_PATH}"
+        echo '    "room_directory": {' >> "${CONFIG_JSON_PATH}"
+        echo '        "servers": [' >> "${CONFIG_JSON_PATH}"
+        echo '            "matrix.org"' >> "${CONFIG_JSON_PATH}"
+        echo '        ]' >> "${CONFIG_JSON_PATH}"
+        echo '    },' >> "${CONFIG_JSON_PATH}"
+        echo '    "enable_presence_by_hs_url": {' >> "${CONFIG_JSON_PATH}"
+        echo '        "https://matrix.org": false,' >> "${CONFIG_JSON_PATH}"
+        echo '        "https://matrix-client.matrix.org": false' >> "${CONFIG_JSON_PATH}"
+        echo '    },' >> "${CONFIG_JSON_PATH}"
+        echo '    "setting_defaults": {' >> "${CONFIG_JSON_PATH}"
+        echo '        "breadcrumbs": true,' >> "${CONFIG_JSON_PATH}"
+        echo '        "UIFeature.voipCallExperience": true' >> "${CONFIG_JSON_PATH}"
+        echo '    },' >> "${CONFIG_JSON_PATH}"
+        echo '    "jitsi": {' >> "${CONFIG_JSON_PATH}"
+        echo '        "preferred_domain": "${ELEMENT_JITSI_DOMAIN}"' >> "${CONFIG_JSON_PATH}"
+        echo '    }' >> "${CONFIG_JSON_PATH}"
+        echo '}' >> "${CONFIG_JSON_PATH}"
+
+        echo "Element configuration complete."
+      else
+        echo "Element web and config.json found. Skipping download and generation."
+      fi
+      
+      echo "Starting Nginx for Element..."
+      exec nginx -g "daemon off;"
       '
 
 volumes:
