@@ -71,78 +71,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 3
-    command:
-      - sh
-      - -c
-      - |
-        if [ ! -f /data/homeserver.yaml ]; then
-          echo "Generating Synapse homeserver.yaml..."
-          python -m synapse.app.homeserver \\
-            --server-name "${SYNAPSE_SERVER_NAME}" \\
-            --config-path /data/homeserver.yaml \\
-            --generate-config \\
-            --report-stats="${SYNAPSE_REPORT_STATS}"
-
-          echo "Updating homeserver.yaml for PostgreSQL..."
-          TMP_CONFIG="/data/homeserver.yaml.tmp"
-          # Awk script is now directly in the shell script, no need for sh -c escaping
-          awk -v pg_password="${POSTGRES_PASSWORD}" '
-            BEGIN {p=1}
-            /^database:/ {
-              print "database:"; print "  name: psycopg2"; print "  args:";
-              print "    user: synapse"; print "    password: " pg_password;
-              print "    database: synapse"; print "    host: postgres";
-              print "    cp_min: 5"; print "    cp_max: 10";
-              p=0
-            }
-            /^(  args:|  user:|  password:|  database:|  host:|  cp_min:|  cp_max:)/ {next}
-            /^  name: sqlite3/ {next}
-            {if(p)print}
-            /^[a-zA-Z_]+:/ {p=1}
-          ' /data/homeserver.yaml > "${TMP_CONFIG}" && mv "${TMP_CONFIG}" /data/homeserver.yaml
-
-          echo "Adding Redis configuration to homeserver.yaml..."
-          {
-            echo "redis:"
-            echo "  enabled: true"
-            echo "  host: redis"
-            echo "  port: 6379"
-          } >> /data/homeserver.yaml
-
-          echo "Adding TURN server configuration to homeserver.yaml..."
-          {
-            echo "turn_uris:"
-            # Literal single quotes for YAML are tricky with echo. 
-            # Using printf for more robust quoting.
-            printf "  - ''turn:%s:3478?transport=udp''\\n" "${SYNAPSE_SERVER_NAME}" >> /data/homeserver.yaml
-            printf "  - ''turn:%s:3478?transport=tcp''\\n" "${SYNAPSE_SERVER_NAME}" >> /data/homeserver.yaml
-            echo "turn_user_lifetime: 86400000" >> /data/homeserver.yaml
-            echo "turn_allow_guests: true" >> /data/homeserver.yaml
-            printf "turn_shared_secret: ''%s''\\n" "${COTURN_STATIC_AUTH_SECRET:-turn_secret}" >> /data/homeserver.yaml
-          } >> /data/homeserver.yaml # This was an error, should append to homeserver.yaml
-
-          if [ -n "${REGISTRATION_SHARED_SECRET}" ]; then
-            echo "Adding registration_shared_secret to homeserver.yaml..."
-            printf "registration_shared_secret: ''%s''\\n" "${REGISTRATION_SHARED_SECRET}" >> /data/homeserver.yaml
-          fi
-
-          echo "Updating trusted_key_servers in homeserver.yaml..."
-          sed -i "s|^trusted_key_servers:.*|trusted_key_servers: ${TRUSTED_KEY_SERVERS}|" /data/homeserver.yaml
-
-          echo "Applying family-safe defaults to homeserver.yaml..."
-          sed -i "s/^enable_registration:.*/enable_registration: ${ENABLE_REGISTRATION:-false}/" /data/homeserver.yaml
-          sed -i "s/^allow_guest_access:.*/allow_guest_access: ${ALLOW_GUEST_ACCESS:-false}/" /data/homeserver.yaml
-          sed -i "s/^url_preview_enabled:.*/url_preview_enabled: ${URL_PREVIEW_ENABLED:-false}/" /data/homeserver.yaml
-          
-          if [ "${REQUIRE_IDENTITY_SERVER:-false}" = "true" ]; then
-            sed -i 's/require_identity_server: false/require_identity_server: true/' /data/homeserver.yaml
-          else
-            sed -i 's/require_identity_server: true/require_identity_server: false/' /data/homeserver.yaml
-          fi
-          echo "Synapse configuration complete."
-        fi
-        echo "Starting Synapse..."
-        exec python -m synapse.app.homeserver --config-path /data/homeserver.yaml
+    command: run
 
   coturn:
     image: coturn/coturn:latest
