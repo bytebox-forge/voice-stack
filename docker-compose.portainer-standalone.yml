@@ -52,10 +52,10 @@ services:
       - media_store:/media_store
     depends_on:
       - postgres
-      - redis
-    networks:
+      - redis    networks:
       - voice-stack-network
-      - proxy-bridge    ports:
+      - proxy-bridge
+    ports:
       - "${SYNAPSE_PORT:-8008}:8008"
     restart: unless-stopped
     entrypoint: >
@@ -101,7 +101,8 @@ services:
           echo '    database: synapse' >> /tmp/db.yaml &&
           echo '    host: postgres' >> /tmp/db.yaml &&
           echo '    cp_min: 5' >> /tmp/db.yaml &&
-          echo '    cp_max: 10' >> /tmp/db.yaml &&          sed -i '/^database:/,/^[a-z]/{ /^database:/r /tmp/db.yaml' -e '/^database:/,/^[a-z]/d; }' /data/homeserver.yaml &&
+          echo '    cp_max: 10' >> /tmp/db.yaml &&
+          sed -i '/^database:/,/^[a-z]/{ /^database:/r /tmp/db.yaml' -e '/^database:/,/^[a-z]/d; }' /data/homeserver.yaml &&
           echo 'redis:' >> /data/homeserver.yaml &&
           echo '  enabled: true' >> /data/homeserver.yaml &&
           echo '  host: redis' >> /data/homeserver.yaml &&
@@ -156,11 +157,12 @@ services:
         echo 'log-file=stdout' >> /tmp/coturn/turnserver.conf &&
         echo 'simple-log' >> /tmp/coturn/turnserver.conf &&
         echo 'no-multicast-peers' >> /tmp/coturn/turnserver.conf &&
-        echo 'no-loopback-peers' >> /tmp/coturn/turnserver.conf &&        echo 'pidfile=/tmp/coturn/turnserver.pid' >> /tmp/coturn/turnserver.conf &&
+        echo 'no-loopback-peers' >> /tmp/coturn/turnserver.conf &&
+        echo 'pidfile=/tmp/coturn/turnserver.pid' >> /tmp/coturn/turnserver.conf &&
         echo 'userdb=/tmp/coturn/turnuserdb.conf' >> /tmp/coturn/turnserver.conf &&
-        chmod 644 /tmp/coturn/turnserver.conf &&
-        echo 'Configuration file created:' &&
-        cat /tmp/coturn/turnserver.conf &&        echo 'Starting Coturn server...' &&
+        chmod 644 /tmp/coturn/turnserver.conf &&        echo 'Configuration file created:' &&
+        cat /tmp/coturn/turnserver.conf &&
+        echo 'Starting Coturn server...' &&
         turnserver -c /tmp/coturn/turnserver.conf
       "
 
@@ -173,9 +175,51 @@ services:
       - synapse  
     networks:
       - voice-stack-network
-      - proxy-bridge    ports:
+      - proxy-bridge
+    ports:
       - "${ELEMENT_PORT:-8080}:80"
     restart: unless-stopped
+    volumes:
+      - element_config:/app/config
+    command: >
+      sh -c "
+        echo 'Configuring Element Web...' &&
+        mkdir -p /app/config &&
+        cat > /app/config/config.json << 'EOF'
+        {
+          \"default_server_config\": {
+            \"m.homeserver\": {
+              \"base_url\": \"http://synapse:8008\",
+              \"server_name\": \"$${SERVER_NAME}\"
+            },
+            \"m.identity_server\": {
+              \"base_url\": \"https://vector.im\"
+            }
+          },
+          \"disable_custom_urls\": false,
+          \"disable_guests\": true,
+          \"disable_login_language_selector\": false,
+          \"disable_3pid_login\": false,
+          \"brand\": \"Element\",
+          \"integrations_ui_url\": \"https://scalar.vector.im/\",
+          \"integrations_rest_url\": \"https://scalar.vector.im/api\",
+          \"integrations_widgets_urls\": [
+            \"https://scalar.vector.im/_matrix/integrations/v1\",
+            \"https://scalar.vector.im/api\",
+            \"https://scalar-staging.vector.im/_matrix/integrations/v1\",
+            \"https://scalar-staging.vector.im/api\",
+            \"https://scalar-staging.riot.im/scalar/api\"
+          ],
+          \"bug_report_endpoint_url\": \"https://element.io/bugreports/submit\",
+          \"uisi_autorageshake_app\": \"element-auto-uisi\",
+          \"showLabsSettings\": true,
+          \"piwik\": false
+        }
+        EOF
+        echo 'Element Web configuration created.' &&
+        echo 'Starting Element Web server...' &&
+        exec /docker-entrypoint.sh
+      "
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
       interval: 30s
@@ -196,3 +240,4 @@ volumes:
   synapse_data:
   media_store:
   coturn_data:
+  element_config:
