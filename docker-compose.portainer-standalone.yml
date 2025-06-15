@@ -162,13 +162,13 @@ services:
         echo 'no-multicast-peers' >> /tmp/coturn/turnserver.conf &&
         echo 'no-loopback-peers' >> /tmp/coturn/turnserver.conf &&
         echo 'pidfile=/tmp/coturn/turnserver.pid' >> /tmp/coturn/turnserver.conf &&
-        echo 'userdb=/tmp/coturn/turnuserdb.conf' >> /tmp/coturn/turnserver.conf &&
-        chmod 644 /tmp/coturn/turnserver.conf &&
+        echo 'userdb=/tmp/coturn/turnuserdb.conf' >> /tmp/coturn/turnserver.conf &&        chmod 644 /tmp/coturn/turnserver.conf &&
         echo 'Configuration file created:' &&
         cat /tmp/coturn/turnserver.conf &&
         echo 'Starting Coturn server...' &&
         turnserver -c /tmp/coturn/turnserver.conf
       "
+
   element-web:
     image: vectorim/element-web:latest
     container_name: voice-stack-element
@@ -188,14 +188,12 @@ services:
     command: >
       sh -c "
         echo 'Configuring Element Web...' &&
-        mkdir -p /app/config &&
-        chmod 755 /app/config &&
+        mkdir -p /app/config &&        chmod 755 /app/config &&
         cat > /app/config/config.json << EOF
         {
           \"default_server_config\": {
-            \"m.homeserver\": {
-              \"base_url\": \"http://synapse:8008\",
-              \"server_name\": \"${SERVER_NAME:-matrix.byte-box.org}\"
+            \"m.homeserver\": {              \"base_url\": \"http://synapse:8008\",
+              \"server_name\": \"${SERVER_NAME}\"
             },
             \"m.identity_server\": {
               \"base_url\": \"https://vector.im\"
