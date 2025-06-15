@@ -29,13 +29,13 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - voice-stack-network
-    restart: unless-stopped
+      - voice-stack-network    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
       timeout: 10s
       retries: 5
+
   synapse:
     image: matrixdotorg/synapse:latest
     container_name: voice-stack-synapse
@@ -44,7 +44,8 @@ services:
       SYNAPSE_REPORT_STATS: "no"
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-synapse_password}
       TURN_SECRET: ${TURN_SECRET:-change_me}
-      REGISTRATION_SECRET: ${REGISTRATION_SECRET:-change_me}      # Simple registration token - set this to enable token-based registration
+      REGISTRATION_SECRET: ${REGISTRATION_SECRET:-change_me}
+      # Simple registration token - set this to enable token-based registration
       REGISTRATION_TOKEN: ${REGISTRATION_TOKEN:-}
     volumes:
       - synapse_data:/data
