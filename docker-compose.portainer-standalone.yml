@@ -155,8 +155,8 @@ services:
         echo 'log-file=stdout' >> /tmp/coturn/turnserver.conf &&
         echo 'simple-log' >> /tmp/coturn/turnserver.conf &&
         echo 'no-multicast-peers' >> /tmp/coturn/turnserver.conf &&
-        echo 'no-loopback-peers' >> /tmp/coturn/turnserver.conf &&
-        echo 'pidfile=/tmp/coturn/turnserver.pid' >> /tmp/coturn/turnserver.conf &&        echo 'userdb=/tmp/coturn/turnuserdb.conf' >> /tmp/coturn/turnserver.conf &&
+        echo 'no-loopback-peers' >> /tmp/coturn/turnserver.conf &&        echo 'pidfile=/tmp/coturn/turnserver.pid' >> /tmp/coturn/turnserver.conf &&
+        echo 'userdb=/tmp/coturn/turnuserdb.conf' >> /tmp/coturn/turnserver.conf &&
         chmod 644 /tmp/coturn/turnserver.conf &&
         echo 'Configuration file created:' &&
         cat /tmp/coturn/turnserver.conf &&        echo 'Starting Coturn server...' &&
@@ -169,39 +169,13 @@ services:
     environment:
       - SERVER_NAME=${SERVER_NAME:-matrix.byte-box.org}
     depends_on:
-      - synapse
+      - synapse  
     networks:
       - voice-stack-network
       - proxy-bridge
     ports:
       - "${ELEMENT_PORT:-8080}:80"
     restart: unless-stopped
-    tmpfs:
-      - /app/config:noexec,nosuid,size=10m
-    command: >
-      sh -c "
-        echo 'Setting up Element Web configuration...' &&
-        cat > /app/config/config.json << EOF
-        {
-          \"default_server_config\": {
-            \"m.homeserver\": {
-              \"base_url\": \"http://$${SERVER_NAME}:8008\",
-              \"server_name\": \"$${SERVER_NAME}\"
-            }
-          },
-          \"disable_custom_urls\": true,
-          \"disable_guests\": true,
-          \"disable_3pid_login\": true,
-          \"room_directory\": {
-            \"servers\": [\"$${SERVER_NAME}\"]
-          },
-          \"default_federate\": false,
-          \"show_labs_settings\": false
-        }
-        EOF
-        echo 'Element Web configured successfully.' &&
-        exec nginx -g 'daemon off;'
-      "
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
       interval: 30s
