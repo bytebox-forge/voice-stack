@@ -1,289 +1,197 @@
-# Voice Stack - Matrix Synapse with Voice/Video Support
+# Family Voice Stack - Self-Hosted Matrix Server
 
-A complete Docker setup for a Matrix homeserver with voice and video calling capabilities, designed for deployment with Portainer.
+A complete, family-friendly voice and chat server stack using Matrix Synapse, Element Web, and Coturn for secure communications.
 
-## Components
+## 🎯 Perfect For
 
-- **Matrix Synapse**: The homeserver that handles Matrix protocol
-- **PostgreSQL**: Database backend for Synapse
-- **Redis**: Caching and session storage
-- **Coturn**: TURN/STUN server for voice/video calling
-- **Element Web**: Web client for accessing the Matrix server
+- **Families** wanting private voice/video chat
+- **Small groups** needing secure communication  
+- **Self-hosted** enthusiasts who want control
+- **Privacy-focused** users avoiding big tech platforms
 
-## Features
+## ✨ Features
 
-- ✅ Voice and video calling support
-- ✅ Registration tokens for controlled access
-- ✅ Family-safe defaults (no public rooms)
-- ✅ Modern web interface (Element)
-- ✅ Optimized for Docker deployment
-- ✅ Portainer compatible
-- ✅ PostgreSQL database backend
-- ✅ Redis caching for better performance
+- 🎙️ **Voice and video calling** support
+- 🔐 **Registration tokens** for controlled access
+- 👶 **Family-safe defaults** (no public rooms)
+- 🌐 **Modern web interface** (Element)
+- 🐳 **Single-file deployment** via Portainer
+- 🗄️ **PostgreSQL database** backend
+- ⚡ **Redis caching** for performance
+- 🔗 **Reverse proxy ready** (NPM, Traefik, etc.)
 
-## Quick Start
+## 🚀 Quick Deploy
 
-### Deployment Options
+### Method 1: Portainer (Recommended)
 
-1. **Portainer Standalone** (Recommended): [`PORTAINER-SIMPLE.md`](PORTAINER-SIMPLE.md)
-2. **Reverse Proxy Integration**: [`REVERSE-PROXY.md`](REVERSE-PROXY.md)  
-3. **Manual Docker Compose**: Instructions below
+1. **Create new stack** in Portainer
+2. **Repository URL**: `https://github.com/anykolaiszyn/voice-stack.git`
+3. **Compose Path**: `docker-compose.portainer-standalone.yml`
+4. **Set environment variables** (see Configuration below)
+5. **Deploy**
 
-### Using Portainer (Recommended)
+### Method 2: Docker Compose
 
-**For the simplest deployment**, use the standalone version:
+```bash
+git clone https://github.com/anykolaiszyn/voice-stack.git
+cd voice-stack
+cp .env.example .env
+# Edit .env with your settings
+docker-compose up -d
+```
 
-1. Use `docker-compose.portainer-standalone.yml` in Portainer
-2. Set environment variables (see [`PORTAINER-SIMPLE.md`](PORTAINER-SIMPLE.md))
-3. Deploy with optional registration token support
-
-### Using Portainer with Existing Docker Compose
-
-1. Create a new stack in Portainer
-2. Copy the contents of `docker-compose.yml` into the stack editor
-3. In the environment variables section, add:
-   ```
-   SERVER_NAME=your-domain.com
-   TURN_SECRET=your-random-secret-key
-   TURN_USERNAME=turn_user
-   TURN_PASSWORD=your-turn-password
-   ```
-4. Deploy the stack
-
-### Using Docker Compose
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/anykolaiszyn/voice-stack.git
-   cd voice-stack
-   ```
-
-2. **Run the setup script (REQUIRED - first time only):**
-   ```bash
-   # Linux/Mac
-   chmod +x setup.sh
-   ./setup.sh
-   
-   # Windows
-   setup.bat
-   ```
-   
-   **What the setup script does:**
-   - Creates `.env` file from template
-   - Creates necessary directories
-   - Generates cryptographic keys
-   - Updates configuration files
-   
-3. **Edit the `.env` file** with your actual configuration:
-   ```bash
-   # Edit .env with your preferred editor
-   nano .env
-   ```
-
-4. **Start the services:**
-   ```bash
-   docker-compose up -d
-   ```
-
-**Important:** Run the setup script only once from the project root directory (`voice-stack/`). It's not needed for Portainer Git deployment.
-
-## Configuration
+## ⚙️ Configuration
 
 ### Required Environment Variables
 
-- `SERVER_NAME`: Your Matrix server domain (e.g., `matrix.example.com`)
-- `TURN_SECRET`: Shared secret for TURN server authentication
-- `TURN_USERNAME`: Username for TURN server
-- `TURN_PASSWORD`: Password for TURN server
+```bash
+# Server identity
+SERVER_NAME=matrix.your-domain.com
+POSTGRES_PASSWORD=secure_database_password
+REGISTRATION_SECRET=admin_registration_secret
+TURN_SECRET=turn_server_secret
+
+# Optional: Registration token for controlled access
+REGISTRATION_TOKEN=family2024
+```
 
 ### Optional Environment Variables
 
-- `PUBLIC_BASEURL`: Public URL of your server (defaults to https://SERVER_NAME)
-- `POSTGRES_PASSWORD`: Database password (default: `synapse_password`)
-- `ENABLE_REGISTRATION`: Enable open registration (default: `true`)
-- `REGISTRATION_REQUIRES_TOKEN`: Require tokens for registration (default: `false`)
-- `REGISTRATION_TOKENS`: Comma-separated list of registration tokens (see [REGISTRATION-TOKENS.md](REGISTRATION-TOKENS.md))
-
-## Services and Ports
-
-| Service | Internal Port | External Port | Description |
-|---------|---------------|---------------|-------------|
-| Synapse | 8008 | 8008* | Matrix homeserver HTTP |
-| Synapse | 8448 | 8448 | Matrix federation |
-| Element | 80 | 8081* | Web client |
-| Coturn | 3478 | 3478* | TURN/STUN (UDP/TCP) |
-| Coturn | 5349 | 5349* | TURN/STUN over TLS |
-| Coturn | 49152-49172 | 49152-49172 | TURN relay ports (UDP) |
-
-*Configurable via environment variables: `SYNAPSE_PORT`, `ELEMENT_PORT`, `TURN_PORT`, `TURNS_PORT`
-
-**Default Access URLs:**
-- Element Web: `http://your-server:8080`
-- Synapse API: `http://your-server:8008`
-
-**Port Conflict Resolution:**
-If you encounter port conflicts, customize them in your `.env` file:
 ```bash
-ELEMENT_PORT=8080    # Change if port 8080 is in use
-SYNAPSE_PORT=8008    # Change if port 8008 is in use  
-TURN_PORT=3478       # Change if port 3478 is in use
-TURNS_PORT=5349      # Change if port 5349 is in use
+# Port customization (if conflicts exist)
+SYNAPSE_PORT=8008
+ELEMENT_PORT=8080
+TURN_PORT=3478
+TURNS_PORT=5349
+
+# TURN server credentials
+TURN_USERNAME=turn_user
+TURN_PASSWORD=turn_password
+
+# Public URLs (for reverse proxy setups)
+PUBLIC_BASEURL=https://matrix.your-domain.com
 ```
 
-**Common Port Alternatives:**
-If the default ports are still in use, try these alternatives:
-- Element Web: 8081, 8082, 8083, 9080, 9081
-- Synapse: 8008, 8009, 8010, 9008, 9009
-- TURN: 3478, 3479, 3480, 4478, 4479
+### Registration Token Options
 
-## DNS Configuration
+- **Set `REGISTRATION_TOKEN`**: Enables token-based registration (tokens created manually after deployment)
+- **Leave empty**: Registration disabled (admin-only account creation via registration secret)
 
-For proper operation, configure your DNS:
+**Important**: Registration tokens must be created manually after deployment using the Matrix admin API. See [`REGISTRATION-TOKENS.md`](REGISTRATION-TOKENS.md) for complete instructions.
+
+## 🌐 Access Your Server
+
+After deployment, access your services at:
+
+- **Element Web**: `http://your-server-ip:8080`
+- **Synapse API**: `http://your-server-ip:8008`
+
+## 📚 Documentation
+
+- **[`PORTAINER-SIMPLE.md`](PORTAINER-SIMPLE.md)** - Complete Portainer deployment guide
+- **[`ADMIN-SETUP.md`](ADMIN-SETUP.md)** - Creating your first admin account  
+- **[`REGISTRATION-TOKENS.md`](REGISTRATION-TOKENS.md)** - User registration control
+- **[`CONNECTION-TROUBLESHOOTING.md`](CONNECTION-TROUBLESHOOTING.md)** - Fix connection refused errors
+- **[`FAMILY-SAFE-TROUBLESHOOTING.md`](FAMILY-SAFE-TROUBLESHOOTING.md)** - Fix privacy and security issues
+- **[`REVERSE-PROXY.md`](REVERSE-PROXY.md)** - Custom domains with NPM/Traefik
+- **[`NPM-QUICK-CONNECT.md`](NPM-QUICK-CONNECT.md)** - Nginx Proxy Manager integration
+- **[`FAMILY-SETUP.md`](FAMILY-SETUP.md)** - Creating child-safe accounts
+
+## 🔧 Port Usage
+
+| Service | Port | Purpose |
+|---------|------|---------|
+| Element Web | 8080 | Web interface |
+| Synapse | 8008 | Matrix API |
+| Coturn | 3478/5349 | Voice/Video (TURN/STUN) |
+| Coturn | 49152-49172 | Voice/Video relay range |
+
+## 🏗️ Architecture
 
 ```
-# A record for the main domain
-matrix.example.com -> YOUR_SERVER_IP
-
-# SRV records for federation (optional but recommended)
-_matrix._tcp.example.com -> matrix.example.com:8448
+┌─────────────────┐    ┌─────────────────┐
+│   Element Web   │    │  Nginx Proxy    │
+│     :8080       │    │   Manager       │
+└─────────────────┘    │   (Optional)    │
+         │              └─────────────────┘
+         │                       │
+    ┌─────────────────────────────────┐
+    │        Matrix Synapse           │
+    │          :8008                  │
+    └─────────────────────────────────┘
+         │              │
+┌─────────────────┐ ┌─────────────────┐
+│   PostgreSQL    │ │     Redis       │
+│   Database      │ │    Cache        │
+└─────────────────┘ └─────────────────┘
+         │
+┌─────────────────┐
+│     Coturn      │
+│  TURN Server    │
+│ :3478 & :5349   │
+└─────────────────┘
 ```
 
-## SSL/TLS Setup
+## 🛠️ Troubleshooting
 
-For production use, you'll need SSL certificates. You can:
+### Common Issues
 
-1. Use a reverse proxy like Nginx or Traefik
-2. Use Let's Encrypt with certbot
-3. Use your existing SSL certificate setup
+**Can't access services**:
+- Check if ports are already in use
+- Verify firewall settings
+- Check container logs in Portainer
 
-Example Nginx configuration:
-```nginx
-server {
-    listen 443 ssl http2;
-    server_name matrix.example.com;
-    
-    ssl_certificate /path/to/cert.pem;
-    ssl_certificate_key /path/to/private.key;
-    
-    location / {
-        proxy_pass http://localhost:8008;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
+**Registration not working**:
 
-## Firewall Configuration
+- Create admin account first (see [`ADMIN-SETUP.md`](ADMIN-SETUP.md))
+- Manually create registration tokens (see [`REGISTRATION-TOKENS.md`](REGISTRATION-TOKENS.md))
+- Wait 30 seconds after deployment for initial setup to complete
 
-Open the following ports in your firewall:
+**Voice/Video not working**:
+- Ensure TURN ports (3478, 5349, 49152-49172) are open
+- Check if behind NAT/firewall
+- Verify `TURN_SECRET` matches across services
 
-```bash
-# HTTP/HTTPS (if using reverse proxy)
-80/tcp
-443/tcp
+### Get Help
 
-# Matrix Federation (if not using reverse proxy)
-8448/tcp
+- Check container logs in Portainer
+- Review the troubleshooting guides in the documentation
+- Verify environment variables are set correctly
 
-# TURN/STUN
-3478/udp
-3478/tcp
-5349/udp  
-5349/tcp
-49152-49172/udp
-```
+## 🔒 Security Features
 
-## Creating Admin User
+- **No public registration** by default (token or admin-only)
+- **No public room discovery** (family-safe)
+- **Encrypted communications** support
+- **Isolated Docker networks** for security
+- **Configurable access controls**
 
-After the first startup, create an admin user:
+## 📋 What's Included
 
-```bash
-# Enter the Synapse container
-docker exec -it voice-stack-synapse bash
+| Component | Purpose |
+|-----------|---------|
+| **Matrix Synapse** | Core Matrix homeserver |
+| **Element Web** | Modern web chat interface |
+| **PostgreSQL** | Reliable database backend |
+| **Redis** | Performance caching |
+| **Coturn** | Voice/video calling support |
 
-# Create admin user
-register_new_matrix_user -c /data/homeserver.yaml -u admin -p your_password -a http://localhost:8008
-```
+## 🎯 Use Cases
 
-## Troubleshooting
+- **Family chat server** with voice/video calling
+- **Small team communication** with privacy
+- **Gaming group coordination** without Discord
+- **Community server** with controlled access
+- **Learning platform** for Matrix/self-hosting
 
-### Voice/Video Calls Not Working
+## 🔄 Updates
 
-1. Check TURN server configuration:
-   ```bash
-   docker logs voice-stack-coturn
-   ```
+The stack is automatically updated when you pull the latest changes from the repository in Portainer. Always backup your data before updating.
 
-2. Verify TURN server is reachable:
-   ```bash
-   # Test STUN
-   stunclient coturn 3478
-   ```
+## 📄 License
 
-3. Check firewall rules for UDP ports 49152-49172
+This project is open source. The individual components (Synapse, Element, etc.) have their own licenses.
 
-### Federation Issues
+---
 
-1. Check if port 8448 is accessible from the internet
-2. Verify DNS SRV records
-3. Test federation with Matrix Federation Tester
-
-### Database Connection Issues
-
-1. Check PostgreSQL logs:
-   ```bash
-   docker logs voice-stack-postgres
-   ```
-
-2. Verify database credentials in environment variables
-
-## Security Notes
-
-- Change default passwords in production
-- Use strong secrets for TURN and registration
-- Consider disabling open registration after initial setup
-- Implement rate limiting if exposed to the internet
-- Regular security updates for all components
-
-## Backup
-
-Important directories to backup:
-- `./synapse/` - Synapse configuration and signing keys
-- `./media_store/` - Uploaded media files
-- PostgreSQL database (use pg_dump)
-
-## Support
-
-For issues related to:
-- Matrix Synapse: https://github.com/matrix-org/synapse
-- Element Web: https://github.com/vector-im/element-web
-- Coturn: https://github.com/coturn/coturn
-
-## License
-
-This configuration setup is provided as-is for educational and deployment purposes.
-
-### Portainer Git Integration
-
-For easy deployment and automatic updates using Portainer:
-
-1. **Create Stack from Repository:**
-   - Go to Portainer → Stacks → Add stack
-   - Choose "Repository" tab
-   - Repository URL: `https://github.com/anykolaiszyn/voice-stack.git`
-   - Repository reference: `main`
-   - Compose path: `docker-compose.portainer.yml`
-
-2. **Configure Environment Variables** (same as above)
-
-3. **Enable Auto-Updates:**
-   - Check "Enable auto-update"
-   - Set polling interval: `5m`
-
-4. **Optional Webhook Integration:**
-   - Enable GitOps updates in Portainer
-   - Configure GitHub webhook for instant deployments
-
-See [PORTAINER.md](PORTAINER.md) for detailed Git integration setup.
+**Need help?** Check the documentation links above or review the container logs in Portainer for troubleshooting information.
