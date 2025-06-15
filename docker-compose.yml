@@ -188,6 +188,7 @@ services:
       SYNAPSE_SERVER_NAME: ${SYNAPSE_SERVER_NAME:-matrix.example.com}
       ELEMENT_JITSI_DOMAIN: ${ELEMENT_JITSI_DOMAIN:-meet.element.io}
       ELEMENT_VERSION: ${ELEMENT_VERSION:-v1.11.50}
+      ELEMENT_WEB_DIR: ${ELEMENT_WEB_DIR:-/usr/share/nginx/html}
     volumes:
       - element_data:/usr/share/nginx/html
     networks:
