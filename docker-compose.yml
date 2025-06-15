@@ -1,0 +1,215 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: voice-stack-postgres
+    environment:
+      POSTGRES_DB: synapse
+      POSTGRES_USER: synapse
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-synapse_password}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - voice-stack-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synapse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+
+  redis:
+    image: redis:7-alpine
+    container_name: voice-stack-redis
+    volumes:
+      - redis_data:/data
+    networks:
+      - voice-stack-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+
+  synapse:
+    image: matrixdotorg/synapse:latest
+    container_name: voice-stack-synapse
+    environment:
+      SYNAPSE_CONFIG_DIR: /data
+      SYNAPSE_CONFIG_PATH: /data/homeserver.yaml
+      SYNAPSE_SERVER_NAME: ${SYNAPSE_SERVER_NAME:-matrix.example.com}
+      SYNAPSE_REPORT_STATS: ${SYNAPSE_REPORT_STATS:-no}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-synapse_password}
+      REGISTRATION_SHARED_SECRET: ${REGISTRATION_SHARED_SECRET:-}
+      TRUSTED_KEY_SERVERS: '["https://matrix.org"]'
+      # Family-safe defaults
+      ENABLE_REGISTRATION: ${ENABLE_REGISTRATION:-false}
+      ALLOW_GUEST_ACCESS: ${ALLOW_GUEST_ACCESS:-false}
+      URL_PREVIEW_ENABLED: ${URL_PREVIEW_ENABLED:-false}
+      REQUIRE_IDENTITY_SERVER: ${REQUIRE_IDENTITY_SERVER:-false}
+    volumes:
+      - synapse_data:/data
+      - media_store:/data/media_store
+    ports:
+      - "${SYNAPSE_PORT:-8008}:8008"
+    networks:
+      - voice-stack-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fSs", "http://localhost:8008/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    command: |
+      bash -c "
+        # Generate the initial config file if it doesn't exist
+        if [ ! -f /data/homeserver.yaml ]; then
+          python -m synapse.app.homeserver \
+            --server-name $${SYNAPSE_SERVER_NAME} \
+            --config-path /data/homeserver.yaml \
+            --generate-config \
+            --report-stats=$${SYNAPSE_REPORT_STATS}
+          
+          # Update the generated config to use PostgreSQL
+          sed -i 's/sqlite3/psycopg2/' /data/homeserver.yaml
+          sed -i 's/database: .*/database: synapse/' /data/homeserver.yaml
+          sed -i 's/name: sqlite3/name: psycopg2/' /data/homeserver.yaml
+          
+          # Add database connection settings
+          echo '  user: synapse' >> /data/homeserver.yaml
+          echo '  password: '\"$${POSTGRES_PASSWORD}\" >> /data/homeserver.yaml
+          echo '  host: postgres' >> /data/homeserver.yaml
+          echo '  cp_min: 5' >> /data/homeserver.yaml
+          echo '  cp_max: 10' >> /data/homeserver.yaml
+          
+          # Add redis config
+          echo 'redis:' >> /data/homeserver.yaml
+          echo '  enabled: true' >> /data/homeserver.yaml
+          echo '  host: redis' >> /data/homeserver.yaml
+          echo '  port: 6379' >> /data/homeserver.yaml
+
+          # Configure turn server
+          echo 'turn_uris:' >> /data/homeserver.yaml
+          echo '  - turns:$${SYNAPSE_SERVER_NAME}?transport=udp' >> /data/homeserver.yaml
+          echo '  - turns:$${SYNAPSE_SERVER_NAME}?transport=tcp' >> /data/homeserver.yaml
+          echo '  - turn:$${SYNAPSE_SERVER_NAME}?transport=udp' >> /data/homeserver.yaml
+          echo '  - turn:$${SYNAPSE_SERVER_NAME}?transport=tcp' >> /data/homeserver.yaml
+          echo 'turn_user_lifetime: 86400000' >> /data/homeserver.yaml
+          echo 'turn_allow_guests: true' >> /data/homeserver.yaml
+          echo 'turn_shared_secret: ${COTURN_STATIC_AUTH_SECRET:-turn_secret}' >> /data/homeserver.yaml
+
+          # Add registration shared secret if provided
+          if [ ! -z \"$${REGISTRATION_SHARED_SECRET}\" ]; then
+            echo 'registration_shared_secret: '\"$${REGISTRATION_SHARED_SECRET}\" >> /data/homeserver.yaml
+          fi
+          
+          # Set up trusted key servers
+          sed -i 's|trusted_key_servers:|trusted_key_servers: '\"$${TRUSTED_KEY_SERVERS}\"|g' /data/homeserver.yaml
+          
+          # Configure family-safe settings
+          sed -i 's/enable_registration: true/enable_registration: '\"$${ENABLE_REGISTRATION}\"'/' /data/homeserver.yaml
+          sed -i 's/allow_guest_access: true/allow_guest_access: '\"$${ALLOW_GUEST_ACCESS}\"'/' /data/homeserver.yaml
+          sed -i 's/url_preview_enabled: false/url_preview_enabled: '\"$${URL_PREVIEW_ENABLED}\"'/' /data/homeserver.yaml
+          
+          if [ \"$${REQUIRE_IDENTITY_SERVER}\" = \"true\" ]; then
+            sed -i 's/require_identity_server: false/require_identity_server: true/' /data/homeserver.yaml
+          else
+            sed -i 's/require_identity_server: true/require_identity_server: false/' /data/homeserver.yaml
+          fi
+        fi
+        
+        # Start the Synapse server
+        exec python -m synapse.app.homeserver --config-path /data/homeserver.yaml
+      "
+
+  coturn:
+    image: coturn/coturn:latest
+    container_name: voice-stack-coturn
+    environment:
+      STATIC_AUTH_SECRET: ${COTURN_STATIC_AUTH_SECRET:-turn_secret}
+      SYNAPSE_SERVER_NAME: ${SYNAPSE_SERVER_NAME:-matrix.example.com}
+      COTURN_EXTERNAL_IP: ${COTURN_EXTERNAL_IP:-auto}
+      COTURN_MIN_PORT: ${COTURN_MIN_PORT:-49152}
+      COTURN_MAX_PORT: ${COTURN_MAX_PORT:-49172} # Default to a range
+      COTURN_PORT: ${COTURN_PORT:-3478}
+      COTURN_TLS_PORT: ${COTURN_TLS_PORT:-5349}
+    volumes:
+      - coturn_data:/var/lib/coturn
+    ports:
+      # Relay port range UDP
+      - "${COTURN_MIN_PORT:-49152}-${COTURN_MAX_PORT:-49172}:${COTURN_MIN_PORT:-49152}-${COTURN_MAX_PORT:-49172}/udp"
+      # Standard TURN/TURNS ports
+      - "${COTURN_PORT:-3478}:3478/udp"
+      - "${COTURN_PORT:-3478}:3478/tcp"
+      - "${COTURN_TLS_PORT:-5349}:5349/udp"
+      - "${COTURN_TLS_PORT:-5349}:5349/tcp"
+    networks:
+      - voice-stack-network
+    restart: unless-stopped
+    command:
+      - "-n"
+      - "--log-file=stdout"
+      - "--min-port=${COTURN_MIN_PORT:-49152}"
+      - "--max-port=${COTURN_MAX_PORT:-49172}"
+      - "--lt-cred-mech"
+      - "--use-auth-secret"
+      - "--static-auth-secret=${COTURN_STATIC_AUTH_SECRET:-turn_secret}"
+      - "--realm=${SYNAPSE_SERVER_NAME:-matrix.example.com}"
+      - "--external-ip=${COTURN_EXTERNAL_IP:-auto}" # Corrected: Use ${VAR} for compose substitution
+
+  element:
+    image: nginx:alpine
+    container_name: voice-stack-element
+    volumes:
+      - element_config:/element
+    networks:
+      - voice-stack-network
+    ports:
+      - "${ELEMENT_PORT:-8080}:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # Simplified command with no heredoc for more reliable YAML parsing
+    command: >
+      sh -c "mkdir -p /element /usr/share/nginx/html && 
+      if [ ! -d '/element/element-v1.11' ]; then 
+        echo 'Downloading Element Web...' && 
+        cd /tmp && 
+        wget -q https://github.com/vector-im/element-web/releases/latest/download/element-web.tar.gz && 
+        mkdir -p /element/element-v1.11 && 
+        tar -xzf element-web.tar.gz -C /element/element-v1.11 --strip-components=1 && 
+        rm element-web.tar.gz; 
+      fi && 
+      cp -r /element/element-v1.11/* /usr/share/nginx/html/ && 
+      echo '{"default_server_config":{"m.homeserver":{"base_url":"http://synapse:8008","server_name":"${SYNAPSE_SERVER_NAME:-matrix.example.com}"}},"brand":"Family Chat","integrations_ui_url":"","integrations_rest_url":"","integrations_widgets_urls":[],"bug_report_endpoint_url":"","showLabsSettings":false,"features":{"feature_video_rooms":true,"feature_voice_messages":true,"feature_thread":true,"feature_element_call":true},"default_country_code":"US","setting_defaults":{"breadcrumbs":true},"map_style_url":"https://api.maptiler.com/maps/streets/style.json?key=fU3vlMsMn4Jb6dnEIFsx"}' > /usr/share/nginx/html/config.json && 
+      echo 'Element Web configured successfully!' && 
+      exec nginx -g 'daemon off;'"
+
+networks:
+  voice-stack-network:
+    driver: bridge
+  proxy-bridge:
+    driver: bridge
+    external: false
+
+volumes:
+  postgres_data:
+  redis_data:
+  synapse_data:
+  media_store:
+  coturn_data:
+  element_config:
