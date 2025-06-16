@@ -69,12 +69,10 @@ openssl rand -hex 16  # For auth passwords
 
 ### 4. Configure Network in Portainer
 
-1. **Under Network section**: Select `core-network`
-2. **Ensure core-network exists**: If not, create external network first:
-   ```bash
-   docker network create --driver bridge core-network
-   ```
-3. **Firewall Requirements**: Open these ports on Host B:
+The Jitsi stack uses its own internal `jitsi-network` (no external network configuration needed):
+
+1. **Network**: Leave as default (internal bridge network will be created automatically)
+2. **Firewall Requirements**: Open these ports on Host B:
    - **80/tcp**: HTTP (Let's Encrypt challenges)
    - **443/tcp**: HTTPS (Jitsi Meet web interface)
    - **10000/udp**: JVB media port (client connections)
@@ -187,8 +185,9 @@ For this integration to work, you need:
 1. **DNS A Record**: `meet.example.org` → Host B's public IP
 2. **Firewall Rules**: 
    - Host B: Ports 80, 443, 10000/udp open to internet
-   - Host A ↔ Host B: Communication on core-network
 3. **SSL Certificate**: Automatically handled by Let's Encrypt
+
+**Note**: The Jitsi stack runs independently on Host B with its own network. Element on Host A connects to it via the public domain.
 
 ## Troubleshooting
 
