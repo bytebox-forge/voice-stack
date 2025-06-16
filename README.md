@@ -100,10 +100,24 @@ After deployment, access your services at:
 
 - **Element Web**: `http://your-server-ip:8080`
 - **Synapse API**: `http://your-server-ip:8008`
+- **Synapse Admin Panel**: `http://your-server-ip:8081` (for server management)
+
+## 🛠️ Server Management
+
+This stack includes a **Synapse Admin Panel** for easy server management:
+
+- **User Management**: Create, edit, deactivate users
+- **Room Management**: View, moderate, delete rooms  
+- **Server Statistics**: Monitor usage and performance
+- **Media Management**: Handle uploaded files
+- **Federation Control**: Manage server connections
+
+**📖 Complete Guide**: See [`SYNAPSE-ADMIN-GUIDE.md`](SYNAPSE-ADMIN-GUIDE.md) for detailed admin panel instructions.
 
 ## 📚 Documentation
 
 - **[`PORTAINER-SIMPLE.md`](PORTAINER-SIMPLE.md)** - Complete Portainer deployment guide
+- **[`SYNAPSE-ADMIN-GUIDE.md`](SYNAPSE-ADMIN-GUIDE.md)** - Complete admin panel usage guide
 - **[`ADMIN-SETUP.md`](ADMIN-SETUP.md)** - Creating your first admin account  
 - **[`REGISTRATION-TOKENS.md`](REGISTRATION-TOKENS.md)** - User registration control
 - **[`CONNECTION-TROUBLESHOOTING.md`](CONNECTION-TROUBLESHOOTING.md)** - Fix connection refused errors
@@ -118,6 +132,7 @@ After deployment, access your services at:
 |---------|------|---------|
 | Element Web | 8080 | Web interface |
 | Synapse | 8008 | Matrix API |
+| Synapse Admin | 8081 | Server management panel |
 | Coturn | 3478/5349 | Voice/Video (TURN/STUN) |
 | Coturn | 49152-49172 | Voice/Video relay range |
 

@@ -258,32 +258,14 @@ services:
         else
           echo "Element web and config.json found. Skipping download and generation."
         fi
-        
-        echo "Starting Nginx for Element..."
+          echo "Starting Nginx for Element..."
         exec nginx -g 'daemon off;'
 
   synapse-admin:
-    image: awesometechnologies/synapse-admin:latest
+    image: awesometech/synapse-admin:latest
     container_name: voice-stack-synapse-admin
-    environment:
-      - REACT_APP_SERVER_NAME=${SYNAPSE_SERVER_NAME:-matrix.example.com}
-    networks:
-      - voice-stack-network
     ports:
       - "${SYNAPSE_ADMIN_PORT:-8081}:80"
-    restart: unless-stopped
-    depends_on:
-      - synapse
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80"]
-      interval: 30s      timeout: 10s
-      retries: 3
-
-  synapse-admin:
-    image: awesometech/synapse-admin:latest
-    container_name: synapse-admin
-    ports:
-      - "${SYNAPSE_ADMIN_PORT:-8080}:80"
     environment:
       - REACT_APP_SERVER=http://${SYNAPSE_SERVER_NAME}:8008
     networks:
