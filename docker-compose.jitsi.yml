@@ -1,0 +1,324 @@
+version: '3.8'
+
+# Jitsi Meet Stack for Host B
+# Deploy this on a separate Docker host from your voice-stack
+# Connects to voice-stack via shared network for Element integration
+
+services:
+  # Prosody XMPP Server - handles authentication and room management
+  prosody:
+    image: jitsi/prosody:stable-8922
+    container_name: jitsi-prosody
+    restart: unless-stopped
+    expose:
+      - '5222'
+      - '5347'
+      - '5280'
+    volumes:
+      - prosody-config:/config:Z
+      - prosody-plugins-custom:/prosody-plugins-custom:Z
+    environment:
+      - AUTH_TYPE=internal
+      - ENABLE_AUTH=1
+      - ENABLE_GUESTS=1
+      - GLOBAL_MODULES=
+      - GLOBAL_CONFIG=
+      - LDAP_URL=
+      - LDAP_BASE=
+      - LDAP_BINDDN=
+      - LDAP_BINDPW=
+      - LDAP_FILTER=
+      - LDAP_AUTH_METHOD=bind
+      - LDAP_VERSION=3
+      - LDAP_USE_TLS=1
+      - LDAP_TLS_CIPHERS=
+      - LDAP_TLS_CHECK_PEER=1
+      - LDAP_TLS_CACERT_FILE=
+      - LDAP_TLS_CACERT_DIR=
+      - LDAP_START_TLS=0
+      - XMPP_DOMAIN=${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_AUTH_DOMAIN=auth.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_GUEST_DOMAIN=guest.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_MUC_DOMAIN=muc.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_INTERNAL_MUC_DOMAIN=internal-muc.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_MODULES=${XMPP_MODULES:-}
+      - XMPP_MUC_MODULES=${XMPP_MUC_MODULES:-}
+      - XMPP_INTERNAL_MUC_MODULES=${XMPP_INTERNAL_MUC_MODULES:-}
+      - XMPP_RECORDER_DOMAIN=recorder.${XMPP_DOMAIN:-meet.jitsi}
+      - JICOFO_COMPONENT_SECRET=${JICOFO_COMPONENT_SECRET}  # Set this in Portainer env vars
+      - JICOFO_AUTH_USER=focus
+      - JICOFO_AUTH_PASSWORD=${JICOFO_AUTH_PASSWORD:-jicofo_password}
+      - JVB_AUTH_USER=jvb
+      - JVB_AUTH_PASSWORD=${JVB_AUTH_PASSWORD:-jvb_password}
+      - JIGASI_XMPP_USER=jigasi
+      - JIGASI_XMPP_PASSWORD=${JIGASI_XMPP_PASSWORD:-jigasi_password}
+      - JIBRI_RECORDER_USER=recorder
+      - JIBRI_RECORDER_PASSWORD=${JIBRI_RECORDER_PASSWORD:-recorder_password}
+      - JIBRI_XMPP_USER=jibri
+      - JIBRI_XMPP_PASSWORD=${JIBRI_XMPP_PASSWORD:-jibri_password}
+      - ENABLE_RECORDING=0
+      - TZ=${TZ:-UTC}
+    networks:
+      - core-network
+    depends_on:
+      - nginx-letsencrypt
+
+  # Jicofo - Conference Focus component
+  jicofo:
+    image: jitsi/jicofo:stable-8922
+    container_name: jitsi-jicofo
+    restart: unless-stopped
+    volumes:
+      - jicofo-config:/config:Z
+    environment:
+      - AUTH_TYPE=internal
+      - ENABLE_AUTH=1
+      - XMPP_DOMAIN=${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_AUTH_DOMAIN=auth.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_INTERNAL_MUC_DOMAIN=internal-muc.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_SERVER=prosody
+      - JICOFO_COMPONENT_SECRET=${JICOFO_COMPONENT_SECRET}  # Set this in Portainer env vars
+      - JICOFO_AUTH_USER=focus
+      - JICOFO_AUTH_PASSWORD=${JICOFO_AUTH_PASSWORD:-jicofo_password}
+      - JICOFO_RESERVATION_ENABLED=false
+      - JICOFO_RESERVATION_REST_BASE_URL=
+      - JVB_BREWERY_MUC=jvbbrewery
+      - JIGASI_BREWERY_MUC=jigasibrewery
+      - JIGASI_SIP_URI=
+      - JIBRI_BREWERY_MUC=jibribrewery
+      - JIBRI_PREFERRED_BREWERY_MUC=jibribrewery
+      - JIBRI_PENDING_TIMEOUT=90
+      - TZ=${TZ:-UTC}
+    networks:
+      - core-network
+    depends_on:
+      - prosody
+
+  # JVB - Jitsi Videobridge for media routing
+  jvb:
+    image: jitsi/jvb:stable-8922
+    container_name: jitsi-jvb
+    restart: unless-stopped
+    ports:
+      - '10000:10000/udp'  # Media port - must be accessible from clients
+    volumes:
+      - jvb-state:/config:Z
+    environment:
+      - DOCKER_HOST_ADDRESS=${DOCKER_HOST_ADDRESS:-auto-detect}
+      - XMPP_AUTH_DOMAIN=auth.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_INTERNAL_MUC_DOMAIN=internal-muc.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_SERVER=prosody
+      - JVB_AUTH_USER=jvb
+      - JVB_AUTH_PASSWORD=${JVB_AUTH_PASSWORD:-jvb_password}
+      - JVB_BREWERY_MUC=jvbbrewery
+      - JVB_PORT=10000
+      - JVB_TCP_HARVESTER_DISABLED=true
+      - JVB_TCP_PORT=4443
+      - JVB_TCP_MAPPED_PORT=4443
+      - JVB_STUN_SERVERS=meet-jit-si-turnrelay.jitsi.net:443
+      - ENABLE_COLIBRI_WEBSOCKET=1
+      - COLIBRI_WEBSOCKET_PORT=9090
+      - JVB_WS_DOMAIN=${DOMAIN:-meet.example.org}
+      - JVB_WS_SERVER_ID=
+      - TZ=${TZ:-UTC}
+    networks:
+      - core-network
+    depends_on:
+      - prosody
+
+  # Jitsi Meet Web UI
+  web:
+    image: jitsi/web:stable-8922
+    container_name: jitsi-web
+    restart: unless-stopped
+    volumes:
+      - web-root:/config:Z
+      - web-transcripts:/usr/share/jitsi-meet/transcripts:Z
+    environment:
+      - ENABLE_AUTH=1
+      - ENABLE_GUESTS=1
+      - ENABLE_LETSENCRYPT=0  # nginx-letsencrypt handles SSL
+      - ENABLE_HTTP_REDIRECT=1
+      - ENABLE_HSTS=0
+      - ENABLE_XMPP_WEBSOCKET=1
+      - DISABLE_HTTPS=0
+      - LETSENCRYPT_DOMAIN=${DOMAIN:-meet.example.org}  # Your Jitsi domain
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}  # Set this in Portainer env vars
+      - PUBLIC_URL=https://${DOMAIN:-meet.example.org}
+      - XMPP_DOMAIN=${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_AUTH_DOMAIN=auth.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_BOSH_URL_BASE=http://prosody:5280
+      - XMPP_GUEST_DOMAIN=guest.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_MUC_DOMAIN=muc.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_RECORDER_DOMAIN=recorder.${XMPP_DOMAIN:-meet.jitsi}
+      - ETHERPAD_URL_BASE=
+      - TZ=${TZ:-UTC}
+      - JIBRI_BREWERY_MUC=jibribrewery
+      - JIBRI_PREFERRED_BREWERY_MUC=jibribrewery
+      - JIBRI_PENDING_TIMEOUT=90
+      - JIBRI_XMPP_USER=jibri
+      - JIBRI_XMPP_PASSWORD=${JIBRI_XMPP_PASSWORD:-jibri_password}
+      - ENABLE_RECORDING=0
+      - DROPBOX_APPKEY=
+      - DROPBOX_REDIRECT_URI=
+      - ENABLE_FILE_RECORDING_SERVICE=0
+      - ENABLE_FILE_RECORDING_SERVICE_SHARING=0
+      - RECORDING_DIR=/tmp/recordings
+      - ENABLE_CALENDAR=0
+      - ENABLE_PREJOIN_PAGE=0
+      - ENABLE_WELCOME_PAGE=1
+      - ENABLE_CLOSE_PAGE=0
+      - DISABLE_AUDIO_LEVELS=0
+      - ENABLE_NOISY_MIC_DETECTION=1
+      - ENABLE_P2P=1
+      - ENABLE_SIMULCAST=1
+      - ENABLE_STATS_ID=1
+      - ENABLE_TRANSCRIPTIONS=0
+      - ENABLE_SUBDOMAINS=0
+      - TOOLBAR_BUTTONS=microphone,camera,closedcaptions,desktop,fullscreen,fodeviceselection,hangup,profile,info,chat,recording,livestreaming,etherpad,sharedvideo,settings,raisehand,videoquality,filmstrip,invite,feedback,stats,shortcuts,tileview,videobackgroundblur,download,help,mute-everyone,mute-video-everyone,security
+      # TURN server integration - set TURN_URL in Portainer environment
+      - TURN_URL=${TURN_URL:-}  # e.g., turn:turn.byte-box.org:3478?transport=udp
+      - TURN_USERNAME=${TURN_USERNAME:-}
+      - TURN_PASSWORD=${TURN_PASSWORD:-}
+    networks:
+      - core-network
+    depends_on:
+      - prosody
+
+  # Nginx with Let's Encrypt for SSL termination
+  nginx-letsencrypt:
+    image: nginx:alpine
+    container_name: jitsi-nginx
+    restart: unless-stopped
+    ports:
+      - '80:80'    # HTTP port for Let's Encrypt challenges
+      - '443:443'  # HTTPS port for Jitsi Meet
+    volumes:
+      - nginx-certs:/etc/nginx/certs:Z
+      - nginx-vhost:/etc/nginx/vhost:Z
+      - nginx-html:/usr/share/nginx/html:Z
+      - nginx-dhparam:/etc/nginx/dhparam:Z
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro  # Custom nginx config
+    environment:
+      - DEFAULT_HOST=${DOMAIN:-meet.example.org}  # Your Jitsi domain
+      - LETSENCRYPT_HOST=${DOMAIN:-meet.example.org}
+      - LETSENCRIPT_EMAIL=${LETSENCRYPT_EMAIL}  # Set this in Portainer env vars
+      - VIRTUAL_HOST=${DOMAIN:-meet.example.org}
+      - VIRTUAL_PORT=80
+    networks:
+      - core-network
+    command: >
+      sh -c "
+        # Generate basic nginx config for Jitsi Meet
+        mkdir -p /etc/nginx/conf.d
+        cat > /etc/nginx/conf.d/default.conf << 'EOF'
+        server {
+            listen 80;
+            server_name ${DOMAIN:-meet.example.org};
+            
+            # Let's Encrypt challenge location
+            location /.well-known/acme-challenge/ {
+                root /usr/share/nginx/html;
+            }
+            
+            # Redirect HTTP to HTTPS
+            location / {
+                return 301 https://\$$server_name\$$request_uri;
+            }
+        }
+        
+        server {
+            listen 443 ssl http2;
+            server_name ${DOMAIN:-meet.example.org};
+            
+            # SSL configuration will be managed by external Let's Encrypt
+            ssl_certificate /etc/nginx/certs/${DOMAIN:-meet.example.org}.crt;
+            ssl_certificate_key /etc/nginx/certs/${DOMAIN:-meet.example.org}.key;
+            ssl_protocols TLSv1.2 TLSv1.3;
+            ssl_ciphers HIGH:!aNULL:!MD5;
+            
+            # Proxy to Jitsi Meet web
+            location / {
+                proxy_pass http://web:80;
+                proxy_set_header Host \$$host;
+                proxy_set_header X-Real-IP \$$remote_addr;
+                proxy_set_header X-Forwarded-For \$$proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto \$$scheme;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade \$$http_upgrade;
+                proxy_set_header Connection \"upgrade\";
+            }
+            
+            # WebSocket proxy for XMPP
+            location /xmpp-websocket {
+                proxy_pass http://prosody:5280/xmpp-websocket;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade \$$http_upgrade;
+                proxy_set_header Connection \"upgrade\";
+                proxy_set_header Host \$$host;
+                proxy_set_header X-Forwarded-For \$$remote_addr;
+                proxy_read_timeout 900s;
+            }
+            
+            # Colibri WebSocket
+            location /colibri-ws/ {
+                proxy_pass http://jvb:9090/colibri-ws/;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade \$$http_upgrade;
+                proxy_set_header Connection \"upgrade\";
+                proxy_set_header Host \$$host;
+            }
+        }
+        EOF
+        
+        # Start nginx
+        exec nginx -g 'daemon off;'
+      "
+
+  # Let's Encrypt companion for automatic SSL certificates
+  letsencrypt:
+    image: nginxproxy/acme-companion:latest
+    container_name: jitsi-letsencrypt
+    restart: unless-stopped
+    volumes:
+      - nginx-certs:/etc/nginx/certs:Z
+      - nginx-vhost:/etc/nginx/vhost:Z
+      - nginx-html:/usr/share/nginx/html:Z
+      - nginx-dhparam:/etc/nginx/dhparam:Z
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - DEFAULT_EMAIL=${LETSENCRYPT_EMAIL}  # Set this in Portainer env vars
+      - NGINX_PROXY_CONTAINER=jitsi-nginx
+    networks:
+      - core-network
+    depends_on:
+      - nginx-letsencrypt
+
+# Named volumes for persistence
+volumes:
+  prosody-config:
+    name: jitsi_prosody_config
+  prosody-plugins-custom:
+    name: jitsi_prosody_plugins
+  jicofo-config:
+    name: jitsi_jicofo_config
+  jvb-state:
+    name: jitsi_jvb_state
+  web-root:
+    name: jitsi_web_root
+  web-transcripts:
+    name: jitsi_web_transcripts
+  nginx-certs:
+    name: jitsi_nginx_certs
+  nginx-vhost:
+    name: jitsi_nginx_vhost
+  nginx-html:
+    name: jitsi_nginx_html
+  nginx-dhparam:
+    name: jitsi_nginx_dhparam
+
+# External network to connect with voice-stack on Host A
+networks:
+  core-network:
+    external: true
+    name: core-network
