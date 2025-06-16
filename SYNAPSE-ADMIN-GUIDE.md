@@ -17,9 +17,9 @@ This guide covers how to use the Synapse Admin web interface included in your vo
 
 After deploying your voice-stack:
 
-1. **URL**: `http://your-server:8081` (default port)
+1. **URL**: `http://your-server:8082` (default port)
 2. **Custom Port**: Check your `.env` file for `SYNAPSE_ADMIN_PORT` if you changed it
-3. **Local Testing**: `http://localhost:8081`
+3. **Local Testing**: `http://localhost:8082`
 
 ## 🚀 First-Time Setup
 
@@ -61,7 +61,7 @@ UPDATE users SET admin = 1 WHERE name = '@youruser:yourdomain.com';
 
 ### Step 2: Login to Admin Panel
 
-1. Go to `http://your-server:8081`
+1. Go to `http://your-server:8082`
 2. **Homeserver URL**: `http://your-server:8008` (or your actual Synapse URL)
 3. **Username**: Your admin username (e.g., `admin` or `@admin:yourdomain.com`)
 4. **Password**: Your admin password
