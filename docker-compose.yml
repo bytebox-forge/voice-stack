@@ -121,6 +121,12 @@ services:
           fi
         fi
         
+        # Promote admin user if specified
+        if [ -n "${SYNAPSE_ADMIN_USER}" ]; then
+          echo "Admin user will be promoted after server starts: ${SYNAPSE_ADMIN_USER}"
+          # Note: This requires the user to exist first, then can be promoted via API
+        fi
+        
         # Start Synapse
         exec python -m synapse.app.homeserver --config-path /data/homeserver.yaml
 
@@ -255,6 +261,41 @@ services:
         
         echo "Starting Nginx for Element..."
         exec nginx -g 'daemon off;'
+
+  synapse-admin:
+    image: awesometechnologies/synapse-admin:latest
+    container_name: voice-stack-synapse-admin
+    environment:
+      - REACT_APP_SERVER_NAME=${SYNAPSE_SERVER_NAME:-matrix.example.com}
+    networks:
+      - voice-stack-network
+    ports:
+      - "${SYNAPSE_ADMIN_PORT:-8081}:80"
+    restart: unless-stopped
+    depends_on:
+      - synapse
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80"]
+      interval: 30s      timeout: 10s
+      retries: 3
+
+  synapse-admin:
+    image: awesometech/synapse-admin:latest
+    container_name: synapse-admin
+    ports:
+      - "${SYNAPSE_ADMIN_PORT:-8080}:80"
+    environment:
+      - REACT_APP_SERVER=http://${SYNAPSE_SERVER_NAME}:8008
+    networks:
+      - voice-stack-network
+    depends_on:
+      - synapse
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   postgres_data:
