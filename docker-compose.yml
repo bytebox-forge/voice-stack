@@ -50,6 +50,7 @@ services:
       # Example: '["matrix.org","server.name"]'. Default: '["matrix.org"]'
       TRUSTED_KEY_SERVERS: '${TRUSTED_KEY_SERVERS:-[\"matrix.org\"]}'
       ENABLE_REGISTRATION: ${ENABLE_REGISTRATION:-false}
+      ENABLE_REGISTRATION_WITHOUT_VERIFICATION: ${ENABLE_REGISTRATION_WITHOUT_VERIFICATION:-false}
       ALLOW_GUEST_ACCESS: ${ALLOW_GUEST_ACCESS:-false}
       URL_PREVIEW_ENABLED: ${URL_PREVIEW_ENABLED:-false}
       REQUIRE_IDENTITY_SERVER: ${REQUIRE_IDENTITY_SERVER:-false}
@@ -95,6 +96,11 @@ services:
         
         # Update registration settings
         sed -i "s/^enable_registration:.*/enable_registration: ${ENABLE_REGISTRATION}/" /data/homeserver.yaml
+        
+        # Add registration without verification setting
+        if [ "${ENABLE_REGISTRATION_WITHOUT_VERIFICATION}" = "true" ] && ! grep -q "enable_registration_without_verification" /data/homeserver.yaml; then
+          echo "enable_registration_without_verification: true" >> /data/homeserver.yaml
+        fi
         
         # Add registration shared secret if provided
         if [ -n "${REGISTRATION_SHARED_SECRET}" ] && ! grep -q "registration_shared_secret" /data/homeserver.yaml; then
