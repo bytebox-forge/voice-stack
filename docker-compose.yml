@@ -1,42 +1,6 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: voice-stack-postgres
-    environment:
-      POSTGRES_DB: synapse
-      POSTGRES_USER: synapse
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-synapse_password}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - voice-stack-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U synapse"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-
-  redis:
-    image: redis:7-alpine
-    container_name: voice-stack-redis
-    volumes:
-      - redis_data:/data
-    networks:
-      - voice-stack-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
   synapse:
     image: matrixdotorg/synapse:latest
     container_name: voice-stack-synapse
@@ -46,7 +10,6 @@ services:
       SYNAPSE_CONFIG_PATH: /data/homeserver.yaml
       SYNAPSE_SERVER_NAME: ${SYNAPSE_SERVER_NAME:-matrix.example.com}
       SYNAPSE_REPORT_STATS: ${SYNAPSE_REPORT_STATS:-no}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-synapse_password}
       REGISTRATION_SHARED_SECRET: ${REGISTRATION_SHARED_SECRET:-}
       # Ensure TRUSTED_KEY_SERVERS is a string that sed can insert directly.
       # Example: '["matrix.org","server.name"]'. Default: '["matrix.org"]'
@@ -64,11 +27,6 @@ services:
       - "${SYNAPSE_PORT:-8008}:8008"
     networks:
       - voice-stack-network
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-fSs", "http://localhost:8008/health"]
@@ -88,15 +46,16 @@ services:
             --generate-config \
             --report-stats="${SYNAPSE_REPORT_STATS}"
         fi
-        
-        # Fix bind_addresses to allow external connections
+          # Fix bind_addresses to allow external connections
         sed -i "s/bind_addresses: \['::1', '127.0.0.1'\]/bind_addresses: ['0.0.0.0']/" /data/homeserver.yaml
-          # Add suppress_key_server_warning if not present
+        
+        # Add suppress_key_server_warning if not present
         if ! grep -q "suppress_key_server_warning" /data/homeserver.yaml; then
           echo "suppress_key_server_warning: true" >> /data/homeserver.yaml
         fi
         
-        # Update registration settings        sed -i "s/^enable_registration:.*/enable_registration: ${ENABLE_REGISTRATION}/" /data/homeserver.yaml
+        # Update registration settings
+        sed -i "s/^enable_registration:.*/enable_registration: ${ENABLE_REGISTRATION}/" /data/homeserver.yaml
         
         # Configure registration shared secret if provided
         if [ -n "${REGISTRATION_SHARED_SECRET}" ]; then
@@ -279,8 +238,6 @@ services:
       retries: 3
 
 volumes:
-  postgres_data:
-  redis_data:
   synapse_data:
   media_store:
   coturn_data:
