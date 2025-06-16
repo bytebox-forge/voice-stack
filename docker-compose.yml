@@ -96,20 +96,28 @@ services:
           echo "suppress_key_server_warning: true" >> /data/homeserver.yaml
         fi
         
-        # Update registration settings
-        sed -i "s/^enable_registration:.*/enable_registration: ${ENABLE_REGISTRATION}/" /data/homeserver.yaml
-          # Configure registration without verification setting
-        if grep -q "enable_registration_without_verification" /data/homeserver.yaml; then
-          sed -i "s/^enable_registration_without_verification:.*/enable_registration_without_verification: ${ENABLE_REGISTRATION_WITHOUT_VERIFICATION}/" /data/homeserver.yaml
-        else
-          echo "enable_registration_without_verification: ${ENABLE_REGISTRATION_WITHOUT_VERIFICATION}" >> /data/homeserver.yaml
-        fi
-          # Configure registration shared secret if provided
+        # Update registration settings        sed -i "s/^enable_registration:.*/enable_registration: ${ENABLE_REGISTRATION}/" /data/homeserver.yaml
+        
+        # Configure registration shared secret if provided
         if [ -n "${REGISTRATION_SHARED_SECRET}" ]; then
           if grep -q "registration_shared_secret" /data/homeserver.yaml; then
             sed -i "s/^registration_shared_secret:.*/registration_shared_secret: \"${REGISTRATION_SHARED_SECRET}\"/" /data/homeserver.yaml
           else
             echo "registration_shared_secret: \"${REGISTRATION_SHARED_SECRET}\"" >> /data/homeserver.yaml
+          fi
+          # When shared secret is provided, we can disable verification requirement
+          # because the shared secret IS the verification method
+          if grep -q "enable_registration_without_verification" /data/homeserver.yaml; then
+            sed -i "s/^enable_registration_without_verification:.*/enable_registration_without_verification: true/" /data/homeserver.yaml
+          else
+            echo "enable_registration_without_verification: true" >> /data/homeserver.yaml
+          fi
+        else
+          # No shared secret provided, use the env variable setting
+          if grep -q "enable_registration_without_verification" /data/homeserver.yaml; then
+            sed -i "s/^enable_registration_without_verification:.*/enable_registration_without_verification: ${ENABLE_REGISTRATION_WITHOUT_VERIFICATION}/" /data/homeserver.yaml
+          else
+            echo "enable_registration_without_verification: ${ENABLE_REGISTRATION_WITHOUT_VERIFICATION}" >> /data/homeserver.yaml
           fi
         fi
         
