@@ -198,7 +198,6 @@ services:
       - nginx-vhost:/etc/nginx/vhost:Z
       - nginx-html:/usr/share/nginx/html:Z
       - nginx-dhparam:/etc/nginx/dhparam:Z
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro  # Custom nginx config
     environment:
       - DEFAULT_HOST=${DOMAIN:-meet.example.org}  # Your Jitsi domain
       - LETSENCRYPT_HOST=${DOMAIN:-meet.example.org}
