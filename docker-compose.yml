@@ -260,9 +260,8 @@ services:
         fi
           echo "Starting Nginx for Element..."
         exec nginx -g 'daemon off;'
-
   synapse-admin:
-    image: awesometech/synapse-admin:latest
+    image: awesometechnologies/synapse-admin:latest
     container_name: voice-stack-synapse-admin
     ports:
       - "${SYNAPSE_ADMIN_PORT:-8081}:80"
