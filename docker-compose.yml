@@ -47,7 +47,21 @@ services:
           exit 1
         fi
         
-        # Generate homeserver.yaml if it doesn't exist
+        # Debug existing config
+        if [ -f /data/homeserver.yaml ]; then
+          echo "Existing homeserver.yaml found, checking server_name..."
+          echo "First 10 lines of existing config:"
+          head -10 /data/homeserver.yaml || echo "Could not read config file"
+          if grep -q "server_name:" /data/homeserver.yaml; then
+            echo "server_name found in existing config:"
+            grep "server_name:" /data/homeserver.yaml
+          else
+            echo "server_name NOT found in existing config - will regenerate"
+            rm -f /data/homeserver.yaml
+          fi
+        fi
+        
+        # Generate homeserver.yaml if it doesn't exist or is invalid
         if [ ! -f /data/homeserver.yaml ]; then
           echo "Generating Synapse homeserver.yaml with server name: ${SYNAPSE_SERVER_NAME}"
           
@@ -92,6 +106,9 @@ services:
             echo "ERROR: Failed to generate homeserver.yaml"
             exit 1
           fi
+          
+          echo "Generated config file contents (first 20 lines):"
+          head -20 /data/homeserver.yaml
           
           # Verify server_name is in the config
           if ! grep -q "server_name:" /data/homeserver.yaml; then
@@ -139,6 +156,21 @@ services:
           echo "Admin user will be promoted after server starts: ${SYNAPSE_ADMIN_USER}"
           # Note: This requires the user to exist first, then can be promoted via API
         fi
+        
+        # Final validation before starting Synapse
+        echo "Final validation - checking server_name in config:"
+        if grep -q "server_name:" /data/homeserver.yaml; then
+          echo "✓ server_name found:"
+          grep "server_name:" /data/homeserver.yaml
+        else
+          echo "✗ ERROR: server_name still not found in config!"
+          echo "Config file contents:"
+          cat /data/homeserver.yaml
+          exit 1
+        fi
+        
+        echo "Starting Synapse with config: /data/homeserver.yaml"
+        echo "Using server name: ${SYNAPSE_SERVER_NAME}"
         
         # Start Synapse
         exec python -m synapse.app.homeserver --config-path /data/homeserver.yaml
