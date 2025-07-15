@@ -161,9 +161,11 @@ services:
           echo "Element web not found or config.json missing. Downloading Element $${ELEMENT_VERSION}..."
           wget -qO /tmp/element-web.tar.gz "https://github.com/vector-im/element-web/releases/download/$${ELEMENT_VERSION}/element-$${ELEMENT_VERSION}.tar.gz"
           
-          rm -rf "$${WEB_DIR:?}/"* 
+          rm -rf "$${WEB_DIR:?}/"*
           tar -xzf /tmp/element-web.tar.gz -C "$$WEB_DIR" --strip-components=1
-          rm /tmp/element-web.tar.gz          echo "Creating $$CONFIG_FILE..."
+          rm /tmp/element-web.tar.gz
+          
+          echo "Creating $$CONFIG_FILE..."
           # Create config.json using a simpler approach
           cat > "$$CONFIG_FILE" <<EOF
         {
@@ -217,7 +219,8 @@ services:
         else
           echo "Element web and config.json found. Skipping download and generation."
         fi
-          echo "Starting Nginx for Element..."
+        
+        echo "Starting Nginx for Element..."
         exec nginx -g 'daemon off;'
   synapse-admin:
     image: awesometechnologies/synapse-admin:latest
