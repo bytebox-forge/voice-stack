@@ -37,16 +37,33 @@ services:
       - sh
       - -c
       - |
+        # Debug environment variables
+        echo "SYNAPSE_SERVER_NAME: ${SYNAPSE_SERVER_NAME}"
+        echo "SYNAPSE_REPORT_STATS: ${SYNAPSE_REPORT_STATS}"
+        
+        # Ensure server name is set
+        if [ -z "${SYNAPSE_SERVER_NAME}" ]; then
+          echo "ERROR: SYNAPSE_SERVER_NAME environment variable is not set!"
+          exit 1
+        fi
+        
         # Generate homeserver.yaml if it doesn't exist
         if [ ! -f /data/homeserver.yaml ]; then
-          echo "Generating Synapse homeserver.yaml..."
+          echo "Generating Synapse homeserver.yaml with server name: ${SYNAPSE_SERVER_NAME}"
           python -m synapse.app.homeserver \
             --server-name "${SYNAPSE_SERVER_NAME}" \
             --config-path /data/homeserver.yaml \
             --generate-config \
             --report-stats="${SYNAPSE_REPORT_STATS}"
+          
+          # Verify the config was generated successfully
+          if [ ! -f /data/homeserver.yaml ]; then
+            echo "ERROR: Failed to generate homeserver.yaml"
+            exit 1
+          fi
         fi
-          # Fix bind_addresses to allow external connections
+        
+        # Fix bind_addresses to allow external connections
         sed -i "s/bind_addresses: \['::1', '127.0.0.1'\]/bind_addresses: ['0.0.0.0']/" /data/homeserver.yaml
         
         # Add suppress_key_server_warning if not present
