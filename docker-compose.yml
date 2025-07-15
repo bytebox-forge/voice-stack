@@ -50,16 +50,53 @@ services:
         # Generate homeserver.yaml if it doesn't exist
         if [ ! -f /data/homeserver.yaml ]; then
           echo "Generating Synapse homeserver.yaml with server name: ${SYNAPSE_SERVER_NAME}"
+          
+          # Create the data directory structure
+          mkdir -p /data
+          
+          # Generate config using the official method
           python -m synapse.app.homeserver \
             --server-name "${SYNAPSE_SERVER_NAME}" \
             --config-path /data/homeserver.yaml \
             --generate-config \
-            --report-stats="${SYNAPSE_REPORT_STATS}"
+            --report-stats="${SYNAPSE_REPORT_STATS}" || {
+              echo "ERROR: Config generation failed, creating minimal config"
+              # Create a minimal working config if generation fails
+              echo "server_name: \"${SYNAPSE_SERVER_NAME}\"" > /data/homeserver.yaml
+              echo "pid_file: /data/homeserver.pid" >> /data/homeserver.yaml
+              echo "listeners:" >> /data/homeserver.yaml  
+              echo "  - port: 8008" >> /data/homeserver.yaml
+              echo "    tls: false" >> /data/homeserver.yaml
+              echo "    type: http" >> /data/homeserver.yaml
+              echo "    x_forwarded: true" >> /data/homeserver.yaml
+              echo "    bind_addresses: ['0.0.0.0']" >> /data/homeserver.yaml
+              echo "    resources:" >> /data/homeserver.yaml
+              echo "      - names: [client, federation]" >> /data/homeserver.yaml
+              echo "        compress: false" >> /data/homeserver.yaml
+              echo "database:" >> /data/homeserver.yaml
+              echo "  name: sqlite3" >> /data/homeserver.yaml
+              echo "  args:" >> /data/homeserver.yaml
+              echo "    database: /data/homeserver.db" >> /data/homeserver.yaml
+              echo "media_store_path: /data/media_store" >> /data/homeserver.yaml
+              echo "registration_shared_secret: \"${REGISTRATION_SHARED_SECRET}\"" >> /data/homeserver.yaml
+              echo "report_stats: ${SYNAPSE_REPORT_STATS}" >> /data/homeserver.yaml
+              echo "suppress_key_server_warning: true" >> /data/homeserver.yaml
+              echo "enable_registration: ${ENABLE_REGISTRATION}" >> /data/homeserver.yaml
+              
+              # Generate keys
+              python -m synapse.app.homeserver --server-name="${SYNAPSE_SERVER_NAME}" --config-path=/data/homeserver.yaml --generate-keys || true
+            }
           
           # Verify the config was generated successfully
           if [ ! -f /data/homeserver.yaml ]; then
             echo "ERROR: Failed to generate homeserver.yaml"
             exit 1
+          fi
+          
+          # Verify server_name is in the config
+          if ! grep -q "server_name:" /data/homeserver.yaml; then
+            echo "ERROR: server_name not found in generated config, adding it..."
+            sed -i '1i server_name: "'"${SYNAPSE_SERVER_NAME}"'"' /data/homeserver.yaml
           fi
         fi
         
