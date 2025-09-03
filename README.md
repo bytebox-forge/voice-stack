@@ -85,6 +85,7 @@ Configure your external reverse proxy to route:
 | `COTURN_EXTERNAL_IP` | Server public IP | `auto` | - |
 | `ENABLE_REGISTRATION` | Public registration | `false` | - |
 | `ELEMENT_VERSION` | Element Web version | `v1.11.86` | - |
+| `ELEMENT_PUBLIC_URL` | Public URL for Element Web (used by Synapse web_client_location) | `https://chat.${SYNAPSE_SERVER_NAME}` | - |
 | `LOG_LEVEL` | Logging level | `INFO` | - |
 
 ## 🏗️ Architecture
@@ -176,7 +177,7 @@ docker compose logs -f synapse
 **No Media in Calls**:
 1. Verify TURN server: `docker compose logs coturn`
 2. Check public IP: Set `COTURN_EXTERNAL_IP` if auto-detection fails
-3. Ensure firewall allows ports 3478, 5349, 49152-49172
+3. Ensure firewall allows 3478/udp and 49152-49172/udp (5349 is optional only if you enable TLS)
 
 ### Database Issues
 

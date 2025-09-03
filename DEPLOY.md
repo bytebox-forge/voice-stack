@@ -39,19 +39,20 @@ After deployment is complete, run the command from `create-admin-user.txt`
 
 ### 4. Configure Reverse Proxy
 Point your reverse proxy to:
-- Matrix Server: `localhost:8008` → `https://matrix.byte-box.org`
-- Element Web: `localhost:8080` → `https://matrix.byte-box.org/element`
-- Well-known: `localhost:8081` → `https://matrix.byte-box.org/.well-known`
+- Matrix Server: `http://server:8008` → `https://matrix.byte-box.org`
+- Element Web: `http://server:8080` → `https://chat.byte-box.org`
+- Well-known: `http://server:8090/.well-known/matrix/*` → `https://matrix.byte-box.org/.well-known/matrix/*`
 
 ## Access Points
-- **Element Web**: https://matrix.byte-box.org/element
+- **Element Web**: https://chat.byte-box.org
 - **Synapse Admin**: `localhost:8082` (internal only)
 - **Matrix API**: https://matrix.byte-box.org
 
 ## Health Check
 ```bash
 docker ps | grep voice-stack
-curl http://localhost:8081/.well-known/matrix/server
+curl http://localhost:8090/.well-known/matrix/server
+curl http://localhost:8090/.well-known/matrix/client
 ```
 
 That's it! No complex scripts, just pure Portainer deployment.

@@ -1,22 +1,24 @@
 # Portainer Deployment Guide
 
-Quick deployment guide for Voice Stack via Portainer.
+Quick deployment guide for Voice Stack via Portainer - **No setup scripts required!**
 
 ## Pre-Deployment Setup
 
-**On your Docker host**, run the setup script:
+**On your Docker host**, create Docker volumes:
 
 ```bash
-git clone <repository>
-cd voice-stack
-./setup.sh
+# Windows
+create-volumes.cmd
+
+# Or manually:
+docker volume create voice-stack_postgres_data
+docker volume create voice-stack_synapse_data
+docker volume create voice-stack_media_store
+docker volume create voice-stack_element_data
+docker volume create voice-stack_coturn_data
 ```
 
-This will:
-- Create external Docker volumes
-- Generate secure secrets
-- Validate configuration
-- Check port availability
+This creates the persistent storage volumes needed by the stack.
 
 ## Portainer Deployment
 
@@ -41,6 +43,7 @@ In the **Environment variables** section, add:
 | `POSTGRES_PASSWORD` | `your_strong_database_password_here` |
 | `REGISTRATION_SHARED_SECRET` | `ByteBox_Matrix_2025_SuperSecretKey_Family` |
 | `COTURN_STATIC_AUTH_SECRET` | `ByteBox_TURN_2025_MediaRelaySecret_Secure` |
+| `ELEMENT_PUBLIC_URL` | `https://chat.byte-box.org` |
 
 ### 4. Deploy Stack
 
@@ -51,13 +54,26 @@ Click **Deploy the stack**
 ### 1. Health Check
 
 ```bash
-./scripts/health-check.sh
+# Check all containers are running
+docker ps | grep voice-stack
+
+# Test well-known endpoints
+curl http://localhost:8081/.well-known/matrix/server
+curl http://localhost:8081/.well-known/matrix/client
 ```
 
 ### 2. Create Admin User
 
+Use the single command from `create-admin-user.txt`:
+
 ```bash
-./scripts/create-admin.sh
+# Set your values
+USERNAME="admin"
+PASSWORD="YourSecurePassword123" 
+REG_SECRET="ByteBox_Matrix_2025_SuperSecretKey_Family"
+
+# Create admin user (single command)
+nonce=$(openssl rand -hex 32) && mac=$(echo -n "${nonce}${USERNAME}${PASSWORD}admin${REG_SECRET}" | openssl dgst -sha1 -hmac "${REG_SECRET}" | cut -d' ' -f2) && curl -X POST -H "Content-Type: application/json" -d "{\"nonce\":\"$nonce\",\"username\":\"$USERNAME\",\"password\":\"$PASSWORD\",\"admin\":true,\"mac\":\"$mac\"}" http://localhost:8008/_synapse/admin/v1/register
 ```
 
 ### 3. Configure Reverse Proxy
@@ -73,14 +89,19 @@ Route these endpoints through your reverse proxy:
 
 ### Stack Won't Start
 
-1. Check external volumes exist:
+1. Check volumes exist:
    ```bash
    docker volume ls | grep voice-stack
    ```
 
-2. Re-run setup if volumes missing:
+2. Create volumes if missing:
    ```bash
-   ./setup.sh
+   # Run create-volumes.cmd or create manually
+   docker volume create voice-stack_postgres_data
+   docker volume create voice-stack_synapse_data
+   docker volume create voice-stack_media_store
+   docker volume create voice-stack_element_data
+   docker volume create voice-stack_coturn_data
    ```
 
 ### Services Unhealthy  
@@ -99,12 +120,10 @@ Route these endpoints through your reverse proxy:
 
 **Backup data:**
 ```bash
-./scripts/backup-data.sh
-```
-
-**Restore data:**
-```bash
-./scripts/restore-data.sh YYYYMMDD_HHMMSS
+# Stop stack first, then backup volumes
+docker run --rm -v voice-stack_postgres_data:/backup-volume -v $(pwd):/backup busybox tar czf /backup/postgres_data.tar.gz -C /backup-volume .
+docker run --rm -v voice-stack_synapse_data:/backup-volume -v $(pwd):/backup busybox tar czf /backup/synapse_data.tar.gz -C /backup-volume .
+docker run --rm -v voice-stack_media_store:/backup-volume -v $(pwd):/backup busybox tar czf /backup/media_store.tar.gz -C /backup-volume .
 ```
 
 **Update stack:**
