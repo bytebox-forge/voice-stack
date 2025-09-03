@@ -30,7 +30,7 @@ You need an admin user to access the admin panel. Choose one of these methods:
 #### Method A: Using the Built-in Registration Script (Recommended)
 ```bash
 # Connect to your Synapse container
-docker exec -it voice-stack-synapse-1 bash
+docker exec -it voice-stack-synapse bash
 
 # Create admin user with the registration script
 register_new_matrix_user -u admin -p YourStrongPassword -a -c /data/homeserver.yaml http://localhost:8008
@@ -52,7 +52,7 @@ curl -X PUT "http://your-server:8008/_synapse/admin/v1/users/@youruser:yourdomai
 #### Method C: Database Direct Edit (Advanced)
 ```bash
 # Connect to PostgreSQL container
-docker exec -it voice-stack-postgres-1 psql -U synapse -d synapse
+docker exec -it voice-stack-postgres psql -U synapse -d synapse
 
 # Make user admin (replace 'youruser' with actual username)
 UPDATE users SET admin = 1 WHERE name = '@youruser:yourdomain.com';

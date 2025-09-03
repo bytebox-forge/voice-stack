@@ -1,227 +1,301 @@
-# Family Voice Stack - Self-Hosted Matrix Server
+# Voice Stack - Production Matrix Server
 
-A complete, family-friendly voice and chat server stack using Matrix Synapse, Element Web, and Coturn for secure communications.
+A production-ready, security-hardened Matrix server stack optimized for Portainer deployment. Features persistent PostgreSQL storage, working Element Call integration, and comprehensive operational tools.
 
-## 🎯 Perfect For
+## 🚀 Quick Start
 
-- **Families** wanting private voice/video chat
-- **Small groups** needing secure communication  
-- **Self-hosted** enthusiasts who want control
-- **Privacy-focused** users avoiding big tech platforms
+### Prerequisites
+- Docker and Docker Compose v2
+- External reverse proxy (Nginx Proxy Manager, Cloudflare Tunnels, etc.)
+- Domain name with SSL certificates
+- At least 2GB RAM and 10GB storage
 
-## ✨ Features
+### Portainer Deployment
 
-- 🎙️ **Voice and video calling** support
-- 🔐 **Registration tokens** for controlled access
-- 👶 **Family-safe defaults** (no public rooms)
-- 🌐 **Modern web interface** (Element)
-- 🐳 **Single-file deployment** via Portainer
-- 🗄️ **PostgreSQL database** backend
-- ⚡ **Redis caching** for performance
-- 🔗 **Reverse proxy ready** (NPM, Traefik, etc.)
+1. **Create volumes first** (required for external volumes):
+   ```bash
+   docker volume create voice-stack_postgres_data
+   docker volume create voice-stack_synapse_data
+   docker volume create voice-stack_media_store
+   docker volume create voice-stack_element_data
+   docker volume create voice-stack_coturn_data
+   ```
 
-## 🚀 Quick Deploy
+2. **In Portainer**:
+   - Go to **Stacks** → **Add Stack**
+   - Name: `voice-stack`
+   - Copy contents of `docker-compose.yml`
+   - Set environment variables (see below)
+   - Deploy
 
-### Method 1: Portainer (Recommended)
+### Environment Variables (Required)
 
-1. **Create new stack** in Portainer
-2. **Repository URL**: `https://github.com/anykolaiszyn/voice-stack.git`
-3. **Compose Path**: `docker-compose.portainer-standalone.yml`
-4. **Set environment variables** (see Configuration below)
-5. **Deploy**
-
-> **IMPORTANT UPDATE (June 15, 2025):** We've successfully fixed the "Configuring Element Web..." loop issue by completely replacing the Element Web container with a direct nginx-based deployment. The stack now downloads Element Web directly from GitHub releases and configures it with your server settings. This approach has been tested and confirmed working with true one-click deployment.
->
-> We've also fixed the "Invalid configuration: no default server specified" error by improving the environment variable handling in the docker-compose file. No external scripts or manual steps are needed for a complete deployment.
-
-### Method 2: Docker Compose
+Set these in Portainer's environment variables section:
 
 ```bash
-git clone https://github.com/anykolaiszyn/voice-stack.git
-cd voice-stack
-# The repo includes a ready-to-use .env file
-# Edit .env with your own settings
-docker-compose up -d
+SYNAPSE_SERVER_NAME=matrix.yourdomain.com
+POSTGRES_PASSWORD=your_secure_database_password_here
+REGISTRATION_SHARED_SECRET=your_registration_secret_here
+COTURN_STATIC_AUTH_SECRET=your_turn_secret_here
 ```
 
-## Recent Improvements
-
-- **June 15, 2025**: Fixed Element Web configuration loop issue by replacing with nginx-based solution
-- **June 15, 2025**: Fixed "Invalid configuration: no default server specified" error
-- **June 15, 2025**: Consolidated to a single docker-compose file for true one-click deployment
-- **June 15, 2025**: Simplified repository structure by removing redundant files
-- **June 15, 2025**: Improved environment variable handling and documentation
-- **June 15, 2025**: Improved documentation for registration tokens, port configuration, and troubleshooting
-- **June 15, 2025**: Cleaned up repository, consolidated to a single Docker Compose file
-- **June 15, 2025**: Fixed all network, volume, and environment variable configurations
-
-## ⚙️ Configuration
-
-### Required Environment Variables
-
+**Generate secure secrets:**
 ```bash
-# Server identity
-SERVER_NAME=matrix.your-domain.com
-POSTGRES_PASSWORD=secure_database_password
-REGISTRATION_SECRET=admin_registration_secret
-TURN_SECRET=turn_server_secret
-
-# Optional: Registration token for controlled access
-REGISTRATION_TOKEN=family2024
+# For passwords and secrets
+openssl rand -base64 32
+openssl rand -hex 32
 ```
 
-### Optional Environment Variables
+### Reverse Proxy Configuration
 
-```bash
-# Port customization (if conflicts exist)
-SYNAPSE_PORT=8008
-ELEMENT_PORT=8080
-TURN_PORT=3478
-TURNS_PORT=5349
+Configure your external reverse proxy to route:
 
-# TURN server credentials
-TURN_USERNAME=turn_user
-TURN_PASSWORD=turn_password
+| Service | Internal URL | External URL | Notes |
+|---------|-------------|--------------|--------|
+| Matrix API | `http://server:8008` | `https://matrix.yourdomain.com` | Main Matrix server |
+| Element Web | `http://server:8080` | `https://chat.yourdomain.com` | Web client |
+| Synapse Admin | `http://server:8082` | `https://admin.yourdomain.com` | Admin interface |
+| Well-Known | `http://server:8090/.well-known/matrix/*` | `https://matrix.yourdomain.com/.well-known/matrix/*` | Discovery |
 
-# Public URLs (for reverse proxy setups)
-PUBLIC_BASEURL=https://matrix.your-domain.com
-```
+### Post-Deployment
 
-### Registration Token Options
+1. **Create admin user**:
+   ```bash
+   # SSH into your server
+   ./scripts/register-admin.sh
+   ```
 
-- **Set `REGISTRATION_TOKEN`**: Enables token-based registration (tokens created manually after deployment)
-- **Leave empty**: Registration disabled (admin-only account creation via registration secret)
+2. **Health check**:
+   ```bash
+   ./scripts/healthcheck.sh
+   ```
 
-**Important**: Registration tokens must be created manually after deployment using the Matrix admin API. See [`REGISTRATION-TOKENS.md`](REGISTRATION-TOKENS.md) for complete instructions.
+3. **Access services**:
+   - Element Web: https://chat.yourdomain.com
+   - Synapse Admin: https://admin.yourdomain.com
 
-## 🌐 Access Your Server
+## 📋 Environment Variables
 
-After deployment, access your services at:
-
-- **Element Web**: `http://your-server-ip:8080`
-- **Synapse API**: `http://your-server-ip:8008`
-- **Synapse Admin Panel**: `http://your-server-ip:8082` (for server management)
-
-## 🛠️ Server Management
-
-This stack includes a **Synapse Admin Panel** for easy server management:
-
-- **User Management**: Create, edit, deactivate users
-- **Room Management**: View, moderate, delete rooms  
-- **Server Statistics**: Monitor usage and performance
-- **Media Management**: Handle uploaded files
-- **Federation Control**: Manage server connections
-
-**📖 Complete Guide**: See [`SYNAPSE-ADMIN-GUIDE.md`](SYNAPSE-ADMIN-GUIDE.md) for detailed admin panel instructions.
-
-## 📚 Documentation
-
-- **[`PORTAINER-SIMPLE.md`](PORTAINER-SIMPLE.md)** - Complete Portainer deployment guide
-- **[`SYNAPSE-ADMIN-GUIDE.md`](SYNAPSE-ADMIN-GUIDE.md)** - Complete admin panel usage guide
-- **[`ADMIN-SETUP.md`](ADMIN-SETUP.md)** - Creating your first admin account  
-- **[`REGISTRATION-TOKENS.md`](REGISTRATION-TOKENS.md)** - User registration control
-- **[`CONNECTION-TROUBLESHOOTING.md`](CONNECTION-TROUBLESHOOTING.md)** - Fix connection refused errors
-- **[`FAMILY-SAFE-TROUBLESHOOTING.md`](FAMILY-SAFE-TROUBLESHOOTING.md)** - Fix privacy and security issues
-- **[`REVERSE-PROXY.md`](REVERSE-PROXY.md)** - Custom domains with NPM/Traefik
-- **[`NPM-QUICK-CONNECT.md`](NPM-QUICK-CONNECT.md)** - Nginx Proxy Manager integration
-- **[`FAMILY-SETUP.md`](FAMILY-SETUP.md)** - Creating child-safe accounts
-
-## 🔧 Port Usage
-
-| Service | Port | Purpose |
-|---------|------|---------|
-| Element Web | 8080 | Web interface |
-| Synapse | 8008 | Matrix API |
-| Synapse Admin | 8082 | Server management panel |
-| Coturn | 3478/5349 | Voice/Video (TURN/STUN) |
-| Coturn | 49152-49172 | Voice/Video relay range |
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `SYNAPSE_SERVER_NAME` | Matrix server domain | - | ✅ |
+| `POSTGRES_PASSWORD` | Database password | - | ✅ |
+| `REGISTRATION_SHARED_SECRET` | Admin registration secret | - | ✅ |
+| `COTURN_STATIC_AUTH_SECRET` | TURN server secret | - | ✅ |
+| `COTURN_EXTERNAL_IP` | Server public IP | `auto` | - |
+| `ENABLE_REGISTRATION` | Public registration | `false` | - |
+| `ELEMENT_VERSION` | Element Web version | `v1.11.86` | - |
+| `LOG_LEVEL` | Logging level | `INFO` | - |
 
 ## 🏗️ Architecture
 
+### Services Overview
+
 ```
-┌─────────────────┐    ┌─────────────────┐
-│   Element Web   │    │  Nginx Proxy    │
-│     :8080       │    │   Manager       │
-└─────────────────┘    │   (Optional)    │
-         │              └─────────────────┘
-         │                       │
-    ┌─────────────────────────────────┐
-    │        Matrix Synapse           │
-    │          :8008                  │
-    └─────────────────────────────────┘
-         │              │
-┌─────────────────┐ ┌─────────────────┐
-│   PostgreSQL    │ │     Redis       │
-│   Database      │ │    Cache        │
-└─────────────────┘ └─────────────────┘
-         │
-┌─────────────────┐
-│     Coturn      │
-│  TURN Server    │
-│ :3478 & :5349   │
-└─────────────────┘
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Reverse       │    │   Voice Stack   │    │   External      │
+│   Proxy         │────│   Services      │────│   Users         │
+│   (Cloudflare)  │    │   (Docker)      │    │   (Matrix)      │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-## 🛠️ Troubleshooting
+### Service Details
 
-### Common Issues
-
-**Can't access services**:
-- Check if ports are already in use
-- Verify firewall settings
-- Check container logs in Portainer
-
-**Registration not working**:
-
-- Create admin account first (see [`ADMIN-SETUP.md`](ADMIN-SETUP.md))
-- Manually create registration tokens (see [`REGISTRATION-TOKENS.md`](REGISTRATION-TOKENS.md))
-- Wait 30 seconds after deployment for initial setup to complete
-
-**Voice/Video not working**:
-- Ensure TURN ports (3478, 5349, 49152-49172) are open
-- Check if behind NAT/firewall
-- Verify `TURN_SECRET` matches across services
-
-### Get Help
-
-- Check container logs in Portainer
-- Review the troubleshooting guides in the documentation
-- Verify environment variables are set correctly
+- **PostgreSQL**: Persistent database with optimized settings
+- **Synapse**: Matrix homeserver with Element Call support
+- **Element Web**: Modern Matrix web client
+- **CoTURN**: TURN server for NAT traversal
+- **Well-Known**: Discovery service for Element Call
+- **Synapse Admin**: Web-based administration
 
 ## 🔒 Security Features
 
-- **No public registration** by default (token or admin-only)
-- **No public room discovery** (family-safe)
-- **Encrypted communications** support
-- **Isolated Docker networks** for security
-- **Configurable access controls**
+- ✅ **No Federation**: Private family server mode
+- ✅ **PostgreSQL Only**: No SQLite vulnerabilities
+- ✅ **Admin Registration**: Controlled user creation
+- ✅ **Rate Limiting**: Protection against abuse
+- ✅ **Container Hardening**: No new privileges, logging limits
+- ✅ **Strong Passwords**: Enforced complexity requirements
+- ✅ **Guest Access**: Disabled by default
 
-## 📋 What's Included
+## 🛠️ Operations
 
-| Component | Purpose |
-|-----------|---------|
-| **Matrix Synapse** | Core Matrix homeserver |
-| **Element Web** | Modern web chat interface |
-| **PostgreSQL** | Reliable database backend |
-| **Redis** | Performance caching |
-| **Coturn** | Voice/video calling support |
+### Backup & Restore
 
-## 🎯 Use Cases
+**Create Backup**:
+```bash
+./scripts/backup.sh
+```
 
-- **Family chat server** with voice/video calling
-- **Small team communication** with privacy
-- **Gaming group coordination** without Discord
-- **Community server** with controlled access
-- **Learning platform** for Matrix/self-hosting
+**Restore from Backup**:
+```bash
+./scripts/restore.sh backup_manifest_YYYYMMDD_HHMMSS.txt
+```
 
-## 🔄 Updates
+**Automated Backups** (add to cron):
+```bash
+0 2 * * * cd /path/to/voice-stack && ./scripts/backup.sh
+```
 
-The stack is automatically updated when you pull the latest changes from the repository in Portainer. Always backup your data before updating.
+### Monitoring
 
-## 📄 License
+**Health Check**:
+```bash
+./scripts/healthcheck.sh
+```
 
-This project is open source. The individual components (Synapse, Element, etc.) have their own licenses.
+**View Logs**:
+```bash
+# Via Docker
+docker compose logs -f synapse
+
+# Via Portainer
+# Go to Containers → voice-stack-synapse → Logs
+```
+
+### User Management
+
+**Register Admin**:
+```bash
+./scripts/register-admin.sh
+```
+
+**Manage Users**:
+- Use Synapse Admin interface at: https://admin.yourdomain.com
+- Login with admin credentials
+
+## 🔧 Troubleshooting
+
+### Element Call Issues
+
+**"MISSING_MATRIX_RTC_FOCUS" Error**:
+1. Check well-known endpoint: `curl https://matrix.yourdomain.com/.well-known/matrix/client`
+2. Verify service is running: `docker compose ps well-known`
+3. Check reverse proxy routes /.well-known/matrix/* correctly
+
+**No Media in Calls**:
+1. Verify TURN server: `docker compose logs coturn`
+2. Check public IP: Set `COTURN_EXTERNAL_IP` if auto-detection fails
+3. Ensure firewall allows ports 3478, 5349, 49152-49172
+
+### Database Issues
+
+**Connection Failed**:
+1. Check PostgreSQL health: `docker compose ps postgres`
+2. Verify passwords match in environment variables
+3. Check volumes exist: `docker volume ls | grep voice-stack`
+
+**Data Loss After Restart**:
+1. Ensure external volumes are created before deployment
+2. Check Portainer stack configuration
+3. Restore from backup if needed
+
+### Performance Issues
+
+**High Memory Usage**:
+- Reduce PostgreSQL `shared_buffers` in compose file
+- Adjust Synapse worker processes
+
+**Slow Response**:
+- Check reverse proxy timeout settings
+- Monitor database performance
+- Review container resource limits
+
+## 📁 File Structure
+
+```
+voice-stack/
+├── docker-compose.yml          # Main Portainer-optimized stack
+├── .env.example               # Environment configuration template
+├── scripts/                   # Operational scripts
+│   ├── bootstrap.sh          # Initial setup and validation
+│   ├── healthcheck.sh        # Service health verification  
+│   ├── register-admin.sh     # Admin user creation
+│   ├── backup.sh            # Database and media backup
+│   └── restore.sh           # Backup restoration
+├── config/                   # Configuration templates
+│   ├── nginx/               # Reverse proxy examples
+│   ├── synapse/            # Synapse configuration  
+│   └── well-known/         # Matrix discovery files
+└── docs/                   # Comprehensive documentation
+    ├── README.md          # This file
+    └── [various guides]   # Specialized guides
+```
+
+## 🔄 Migration
+
+### From SQLite Matrix Server
+
+1. Export data: `synapse_port_db --sqlite-database homeserver.db --postgres-config homeserver.yaml`
+2. Deploy this stack with empty database
+3. Import exported data
+4. Update configuration
+
+### From Matrix.org Synapse
+
+1. Backup existing signing keys and database
+2. Deploy this stack
+3. Copy signing keys to synapse_data volume
+4. Import database dump
+5. Update homeserver.yaml with security settings
+
+## 📊 Monitoring
+
+### Health Endpoints
+
+- Synapse: `http://localhost:8008/health`
+- Element: `http://localhost:8080/`
+- Well-Known: `http://localhost:8090/.well-known/matrix/client`
+
+### Key Metrics
+
+- **Database Size**: Monitor PostgreSQL data growth
+- **Media Storage**: Track media_store volume usage  
+- **Memory Usage**: Watch container memory consumption
+- **Network**: Monitor TURN server connectivity
+
+## 🆘 Support
+
+### Log Collection
+
+```bash
+# Collect all logs for support
+./scripts/healthcheck.sh > healthcheck.log 2>&1
+docker compose logs > docker.log 2>&1
+```
+
+### Common Issues
+
+1. **Element Call not working**: Check well-known configuration
+2. **Can't register users**: Verify REGISTRATION_SHARED_SECRET
+3. **Database errors**: Check PostgreSQL container logs
+4. **External connectivity**: Verify reverse proxy configuration
+
+### Resources
+
+- [Matrix Specification](https://spec.matrix.org/)
+- [Synapse Documentation](https://matrix-org.github.io/synapse/)
+- [Element Call Guide](https://github.com/vector-im/element-call)
+- [CoTURN Configuration](https://github.com/coturn/coturn)
 
 ---
 
-**Need help?** Check the documentation links above or review the container logs in Portainer for troubleshooting information.
+## 📋 Final Validation
+
+Before going live, verify:
+
+- [ ] External volumes created
+- [ ] Environment variables set with strong secrets
+- [ ] Reverse proxy configured correctly
+- [ ] TURN server ports open in firewall
+- [ ] SSL certificates valid for all domains
+- [ ] Health check passes
+- [ ] Admin user can login
+- [ ] Element Call works between two users
+- [ ] Backup system functional
+
+**For issues and contributions**: [GitHub Repository](https://github.com/voice-stack)
+
+---
+
+*Production-hardened Matrix server stack - Deployed with ❤️ via Portainer*

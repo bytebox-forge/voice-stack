@@ -1,0 +1,12 @@
+# Create Admin User - Copy/Paste Command
+# Replace USERNAME and PASSWORD with your values
+
+# Set your values
+USERNAME="admin"
+PASSWORD="YourSecurePassword123"
+REG_SECRET="ByteBox_Matrix_2025_SuperSecretKey_Family"
+
+# Generate and create user (single command)
+nonce=$(openssl rand -hex 32) && mac=$(echo -n "${nonce}${USERNAME}${PASSWORD}admin${REG_SECRET}" | openssl dgst -sha1 -hmac "${REG_SECRET}" | cut -d' ' -f2) && curl -X POST -H "Content-Type: application/json" -d "{\"nonce\":\"$nonce\",\"username\":\"$USERNAME\",\"password\":\"$PASSWORD\",\"admin\":true,\"mac\":\"$mac\"}" http://localhost:8008/_synapse/admin/v1/register
+
+# That's it! User @admin:matrix.byte-box.org is created
