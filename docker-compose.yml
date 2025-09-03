@@ -440,24 +440,49 @@ services:
         # Detect external IP if set to 'auto'
         if [ "$COTURN_EXTERNAL_IP" = "auto" ]; then
           echo "Detecting external IP..."
-          # Try multiple methods to get external IP
           EXTERNAL_IP=""
           
+          # Install wget first for IP detection
+          apk add --no-cache wget curl >/dev/null 2>&1 || true
+          
           # Method 1: Try ipify.org
-          EXTERNAL_IP=$(wget -qO- https://api.ipify.org 2>/dev/null || echo "")
+          echo "Trying ipify.org..."
+          EXTERNAL_IP=$(timeout 10 wget -qO- https://api.ipify.org 2>/dev/null || echo "")
           
           # Method 2: Try icanhazip.com if first failed
           if [ -z "$EXTERNAL_IP" ]; then
-            EXTERNAL_IP=$(wget -qO- https://icanhazip.com 2>/dev/null | tr -d '\n' || echo "")
+            echo "Trying icanhazip.com..."
+            EXTERNAL_IP=$(timeout 10 wget -qO- https://icanhazip.com 2>/dev/null | tr -d '\n' || echo "")
           fi
           
-          # Method 3: Use hostname IP as fallback
+          # Method 3: Try curl with ipify as backup
           if [ -z "$EXTERNAL_IP" ]; then
-            EXTERNAL_IP=$(hostname -i 2>/dev/null | awk '{print $1}' || echo "127.0.0.1")
+            echo "Trying curl with ipify.org..."
+            EXTERNAL_IP=$(timeout 10 curl -s https://api.ipify.org 2>/dev/null || echo "")
           fi
           
-          echo "Detected external IP: $EXTERNAL_IP"
+          # Method 4: Use container's default route IP
+          if [ -z "$EXTERNAL_IP" ]; then
+            echo "Using default route IP..."
+            EXTERNAL_IP=$(ip route get 8.8.8.8 2>/dev/null | grep -oP 'src \K\S+' || echo "")
+          fi
+          
+          # Method 5: Use hostname IP as fallback
+          if [ -z "$EXTERNAL_IP" ]; then
+            echo "Using hostname IP..."
+            EXTERNAL_IP=$(hostname -i 2>/dev/null | awk '{print $1}' || echo "")
+          fi
+          
+          # Final fallback to avoid 'auto' hostname error
+          if [ -z "$EXTERNAL_IP" ] || [ "$EXTERNAL_IP" = "127.0.0.1" ]; then
+            echo "WARNING: Could not detect external IP, using container IP as fallback"
+            EXTERNAL_IP=$(ip addr show eth0 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1 || echo "172.17.0.1")
+          fi
+          
+          echo "Using external IP: $EXTERNAL_IP"
           COTURN_EXTERNAL_IP="$EXTERNAL_IP"
+        else
+          echo "Using configured external IP: $COTURN_EXTERNAL_IP"
         fi
 
         # Ensure a netcat variant is available for the healthcheck
