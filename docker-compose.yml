@@ -89,7 +89,7 @@ services:
       - sh
       - -c
       - |
-        set -euo pipefail
+        set -eu
         
         # Validate required environment variables
         for var in SYNAPSE_SERVER_NAME POSTGRES_PASSWORD REGISTRATION_SHARED_SECRET COTURN_STATIC_AUTH_SECRET; do
@@ -300,18 +300,41 @@ services:
       - sh
       - -c
       - |
-        set -euo pipefail
+        set -eu
         
         WEB_DIR="/usr/share/nginx/html"
         
+        # Ensure directory exists
+        mkdir -p "$WEB_DIR"
+        
         # Download Element if not exists
         if [ ! -f "$WEB_DIR/index.html" ]; then
-          echo "Downloading Element $ELEMENT_VERSION..."
+          echo "Downloading Element ${ELEMENT_VERSION}..."
           apk add --no-cache wget curl
-          wget -qO /tmp/element.tar.gz "https://github.com/vector-im/element-web/releases/download/$ELEMENT_VERSION/element-$ELEMENT_VERSION.tar.gz"
-          tar -xzf /tmp/element.tar.gz -C "$WEB_DIR" --strip-components=1
-          rm /tmp/element.tar.gz
+          
+          # Download and extract Element Web
+          wget -qO /tmp/element.tar.gz "https://github.com/vector-im/element-web/releases/download/${ELEMENT_VERSION}/element-${ELEMENT_VERSION}.tar.gz"
+          
+          # Create and extract to temp directory
+          mkdir -p /tmp/element
+          cd /tmp/element
+          tar -xzf /tmp/element.tar.gz
+          
+          # Move contents (find first directory and move its contents)
+          ELEMENT_DIR=$(find . -maxdepth 1 -type d -name "element-*" | head -1)
+          if [ -n "$ELEMENT_DIR" ]; then
+            cp -r "$ELEMENT_DIR"/* "$WEB_DIR/"
+          else
+            # Fallback: copy everything
+            cp -r * "$WEB_DIR/" 2>/dev/null || true
+          fi
+          
+          cd /
+          rm -rf /tmp/element /tmp/element.tar.gz
+          
+          echo "Element extracted successfully"
         else
+          echo "Element already exists, installing curl only"
           apk add --no-cache curl
         fi
         
@@ -412,17 +435,43 @@ services:
       - sh
       - -c
       - |
-        set -euo pipefail
-        # Ensure a netcat variant is available for the healthcheck (optional)
+        set -eu
+        
+        # Detect external IP if set to 'auto'
+        if [ "$COTURN_EXTERNAL_IP" = "auto" ]; then
+          echo "Detecting external IP..."
+          # Try multiple methods to get external IP
+          EXTERNAL_IP=""
+          
+          # Method 1: Try ipify.org
+          EXTERNAL_IP=$(wget -qO- https://api.ipify.org 2>/dev/null || echo "")
+          
+          # Method 2: Try icanhazip.com if first failed
+          if [ -z "$EXTERNAL_IP" ]; then
+            EXTERNAL_IP=$(wget -qO- https://icanhazip.com 2>/dev/null | tr -d '\n' || echo "")
+          fi
+          
+          # Method 3: Use hostname IP as fallback
+          if [ -z "$EXTERNAL_IP" ]; then
+            EXTERNAL_IP=$(hostname -i 2>/dev/null | awk '{print $1}' || echo "127.0.0.1")
+          fi
+          
+          echo "Detected external IP: $EXTERNAL_IP"
+          COTURN_EXTERNAL_IP="$EXTERNAL_IP"
+        fi
+
+        # Ensure a netcat variant is available for the healthcheck
         if command -v apk >/dev/null 2>&1; then
-          apk add --no-cache busybox-extras >/dev/null 2>&1 || true
+          apk add --no-cache busybox-extras wget >/dev/null 2>&1 || true
         elif command -v apt-get >/dev/null 2>&1; then
           apt-get update >/dev/null 2>&1 || true
-          apt-get install -y netcat-openbsd >/dev/null 2>&1 || true
+          apt-get install -y netcat-openbsd wget >/dev/null 2>&1 || true
           rm -rf /var/lib/apt/lists/* || true
         fi
 
-        # Start CoTURN without TLS to avoid config conflicts
+        echo "Starting CoTURN with external IP: $COTURN_EXTERNAL_IP"
+        
+        # Start CoTURN
         exec turnserver \
           --listening-port=3478 \
           --min-port=$COTURN_MIN_PORT \
@@ -464,7 +513,7 @@ services:
       - sh
       - -c
       - |
-        set -euo pipefail
+        set -eu
         
         WEB_ROOT="/usr/share/nginx/html"
         mkdir -p "$WEB_ROOT/.well-known/matrix"
