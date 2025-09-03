@@ -541,8 +541,16 @@ services:
         set -eu
         
         echo "Setting up well-known Matrix discovery files..."
+        echo "SYNAPSE_SERVER_NAME: '$SYNAPSE_SERVER_NAME'"
+        
+        # Validate required environment variables
+        if [ -z "$SYNAPSE_SERVER_NAME" ]; then
+          echo "ERROR: SYNAPSE_SERVER_NAME is not set"
+          exit 1
+        fi
         
         WEB_ROOT="/usr/share/nginx/html"
+        echo "Creating directory: $WEB_ROOT/.well-known/matrix"
         mkdir -p "$WEB_ROOT/.well-known/matrix"
         
         # Generate Matrix client discovery
