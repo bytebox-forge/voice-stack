@@ -522,49 +522,43 @@ services:
         
         # Generate Matrix client discovery
         echo "Creating client discovery file..."
-        cat > "$WEB_ROOT/.well-known/matrix/client" << EOF
-{
-  "m.homeserver": {
-    "base_url": "https://$SYNAPSE_SERVER_NAME"
-  },
-  "org.matrix.msc4143.rtc_foci": [
-    {
-      "type": "livekit",
-      "livekit_service_url": "https://$SYNAPSE_SERVER_NAME/rtc"
-    }
-  ]
-}
-EOF
+        echo '{' > "$WEB_ROOT/.well-known/matrix/client"
+        echo '  "m.homeserver": {' >> "$WEB_ROOT/.well-known/matrix/client"
+        echo "    \"base_url\": \"https://$SYNAPSE_SERVER_NAME\"" >> "$WEB_ROOT/.well-known/matrix/client"
+        echo '  },' >> "$WEB_ROOT/.well-known/matrix/client"
+        echo '  "org.matrix.msc4143.rtc_foci": [' >> "$WEB_ROOT/.well-known/matrix/client"
+        echo '    {' >> "$WEB_ROOT/.well-known/matrix/client"
+        echo '      "type": "livekit",' >> "$WEB_ROOT/.well-known/matrix/client"
+        echo "      \"livekit_service_url\": \"https://$SYNAPSE_SERVER_NAME/rtc\"" >> "$WEB_ROOT/.well-known/matrix/client"
+        echo '    }' >> "$WEB_ROOT/.well-known/matrix/client"
+        echo '  ]' >> "$WEB_ROOT/.well-known/matrix/client"
+        echo '}' >> "$WEB_ROOT/.well-known/matrix/client"
         
         # Generate Matrix server discovery
         echo "Creating server discovery file..."
-        cat > "$WEB_ROOT/.well-known/matrix/server" << EOF
-{
-  "m.server": "$SYNAPSE_SERVER_NAME:8448"
-}
-EOF
+        echo '{' > "$WEB_ROOT/.well-known/matrix/server"
+        echo "  \"m.server\": \"$SYNAPSE_SERVER_NAME:8448\"" >> "$WEB_ROOT/.well-known/matrix/server"
+        echo '}' >> "$WEB_ROOT/.well-known/matrix/server"
         
         # Custom nginx config for well-known
         echo "Configuring Nginx..."
-        cat > /etc/nginx/conf.d/default.conf << EOF
-server {
-    listen 80;
-    server_name _;
-    
-    location /.well-known/matrix/ {
-        root /usr/share/nginx/html;
-        add_header Access-Control-Allow-Origin *;
-        add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS";
-        add_header Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization";
-        add_header Cache-Control "public, max-age=3600";
-        add_header Content-Type application/json;
-    }
-    
-    location / {
-        return 404;
-    }
-}
-EOF
+        echo 'server {' > /etc/nginx/conf.d/default.conf
+        echo '    listen 80;' >> /etc/nginx/conf.d/default.conf
+        echo '    server_name _;' >> /etc/nginx/conf.d/default.conf
+        echo '    ' >> /etc/nginx/conf.d/default.conf
+        echo '    location /.well-known/matrix/ {' >> /etc/nginx/conf.d/default.conf
+        echo '        root /usr/share/nginx/html;' >> /etc/nginx/conf.d/default.conf
+        echo '        add_header Access-Control-Allow-Origin *;' >> /etc/nginx/conf.d/default.conf
+        echo '        add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS";' >> /etc/nginx/conf.d/default.conf
+        echo '        add_header Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization";' >> /etc/nginx/conf.d/default.conf
+        echo '        add_header Cache-Control "public, max-age=3600";' >> /etc/nginx/conf.d/default.conf
+        echo '        add_header Content-Type application/json;' >> /etc/nginx/conf.d/default.conf
+        echo '    }' >> /etc/nginx/conf.d/default.conf
+        echo '    ' >> /etc/nginx/conf.d/default.conf
+        echo '    location / {' >> /etc/nginx/conf.d/default.conf
+        echo '        return 404;' >> /etc/nginx/conf.d/default.conf
+        echo '    }' >> /etc/nginx/conf.d/default.conf
+        echo '}' >> /etc/nginx/conf.d/default.conf
         
         # Install curl for health checks
         apk add --no-cache curl
