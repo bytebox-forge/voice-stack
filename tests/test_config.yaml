@@ -1,0 +1,86 @@
+# Matrix Family Server Test Configuration
+# This file contains configuration for the test suite
+
+# Server endpoints
+synapse_url: "http://localhost:8008"
+element_url: "http://localhost:8080"
+admin_url: "http://localhost:8082"
+well_known_url: "http://localhost:8090"
+server_name: "matrix.byte-box.org"
+
+# Test user credentials
+test_user_password: "TestPassword123!"
+registration_shared_secret: "test_secret"
+
+# Test execution settings
+test_timeout: 300  # seconds
+parallel_workers: 2
+headless: true  # Set to false to see browser during tests
+slow_mo: 100  # milliseconds delay for browser actions (debugging)
+
+# Report generation
+report_format: "both"  # html, json, or both
+output_dir: "test-reports"
+
+# Test categories to run (comment out to skip)
+test_suites:
+  - "test_synapse_api.py"          # Matrix Synapse API tests
+  - "test_element_web.py"          # Element Web client tests
+  - "test_element_call.py"         # Voice/video call tests
+  - "test_network_security.py"     # Security and isolation tests
+  - "test_deployment_portability.py"  # Deployment tests
+
+# Network and security test settings
+security_tests:
+  check_external_connectivity: true
+  check_federation_disabled: true
+  check_guest_access_disabled: true
+  scan_open_ports: true
+
+# Voice/video call test settings
+call_tests:
+  test_audio_calls: true
+  test_video_calls: true
+  test_group_calls: true
+  test_screen_sharing: true
+  max_call_duration: 30  # seconds for testing
+
+# Browser settings for Playwright tests
+browser_settings:
+  browser: "chromium"  # chromium, firefox, webkit
+  viewport_width: 1280
+  viewport_height: 720
+  permissions:
+    - "microphone"
+    - "camera"
+  args:
+    - "--use-fake-ui-for-media-stream"
+    - "--use-fake-device-for-media-stream"
+    - "--autoplay-policy=no-user-gesture-required"
+
+# Deployment test settings
+deployment_tests:
+  test_clean_environment: true
+  test_configuration_flexibility: true
+  skip_slow_tests: true  # Set to false to run full deployment tests
+  keep_test_environment: false  # Set to true for debugging
+
+# Logging and debugging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  capture_screenshots: true  # Capture screenshots on test failures
+  save_logs: true
+  log_directory: "test-logs"
+
+# External dependencies (for testing isolation)
+external_test_servers:
+  - "matrix.org"
+  - "8.8.8.8"
+  - "1.1.1.1"
+
+# Expected service versions (optional - for validation)
+expected_versions:
+  synapse: "1.96.1"
+  element: "1.11.86"
+  postgres: "15.4"
+  coturn: "4.6.2"

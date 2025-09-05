@@ -1,0 +1,7 @@
+FROM vectorim/element-web:v1.11.86
+
+# Copy our custom configuration
+COPY element-config/config.json /app/config.json
+
+# Ensure proper permissions
+RUN chmod 644 /app/config.json
