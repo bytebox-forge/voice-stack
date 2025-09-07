@@ -1,7 +1,84 @@
 FROM vectorim/element-web:v1.11.86
 
-# Copy our custom configuration
-COPY element-config/config.json /app/config.json
+# Create entrypoint script for runtime config generation
+COPY <<'EOF' /docker-entrypoint.sh
+#!/bin/sh
+set -e
+
+# Generate Element config from environment variables
+cat > /app/config.json << 'CONFIG_EOF'
+{
+    "default_server_config": {
+        "m.homeserver": {
+            "base_url": "https://${SYNAPSE_SERVER_NAME}",
+            "server_name": "${SYNAPSE_SERVER_NAME}"
+        },
+        "m.identity_server": {
+            "base_url": "https://vector.im"
+        }
+    },
+    "default_server_name": "${SYNAPSE_SERVER_NAME}",
+    "default_theme": "light",
+    "disable_custom_urls": false,
+    "disable_guests": ${ALLOW_GUEST_ACCESS:-true},
+    "disable_login_language_selector": false,
+    "disable_3pid_login": false,
+    "brand": "Element",
+    "integrations_ui_url": "https://scalar.vector.im/",
+    "integrations_rest_url": "https://scalar.vector.im/api",
+    "integrations_widgets_urls": [
+        "https://scalar.vector.im/_matrix/integrations/v1",
+        "https://scalar.vector.im/api"
+    ],
+    "showLabsSettings": true,
+    "features": {
+        "feature_video_rooms": true,
+        "feature_element_call_video_rooms": true,
+        "feature_group_calls": true,
+        "feature_native_group_call_support": true,
+        "feature_rust_crypto": false,
+        "feature_pinning": true,
+        "feature_custom_themes": true,
+        "feature_spaces": true,
+        "feature_voice_messages": true,
+        "feature_location_share": true,
+        "feature_poll": true,
+        "feature_wysiwyg_composer": true
+    },
+    "element_call": {
+        "url": "https://call.element.io",
+        "use_exclusively": false,
+        "participant_limit": 8,
+        "brand": "Element Call"
+    },
+    "setting_defaults": {
+        "UIFeature.urlPreviews": ${URL_PREVIEW_ENABLED:-true},
+        "UIFeature.feedback": false,
+        "UIFeature.voip": true,
+        "UIFeature.widgets": true,
+        "UIFeature.registration": ${ENABLE_REGISTRATION:-false},
+        "UIFeature.passwordReset": true,
+        "UIFeature.deactivate": true,
+        "UIFeature.advancedEncryption": false,
+        "UIFeature.roomHistorySettings": true
+    },
+    "jitsi": {
+        "preferred_domain": "${ELEMENT_JITSI_DOMAIN:-meet.jit.si}"
+    }
+}
+CONFIG_EOF
+
+# Use envsubst to replace environment variables
+envsubst < /app/config.json > /app/config.json.tmp && mv /app/config.json.tmp /app/config.json
 
 # Ensure proper permissions
-RUN chmod 644 /app/config.json
+chmod 644 /app/config.json
+
+# Start nginx
+exec "$@"
+EOF
+
+RUN chmod +x /docker-entrypoint.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["nginx", "-g", "daemon off;"]

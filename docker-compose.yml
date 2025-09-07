@@ -47,7 +47,7 @@ services:
     networks:
       - voice-stack-network
     ports:
-      - "${SYNAPSE_PORT:-8008}:8008"
+      - "127.0.0.1:${SYNAPSE_PORT:-8008}:8008"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8008/health', timeout=5).getcode()==200 else 1)"]
       interval: 30s
@@ -68,10 +68,16 @@ services:
       dockerfile: Dockerfile.element
     container_name: voice-stack-element
     restart: unless-stopped
+    environment:
+      - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME:?SYNAPSE_SERVER_NAME is required}
+      - ALLOW_GUEST_ACCESS=${ALLOW_GUEST_ACCESS:-true}
+      - ENABLE_REGISTRATION=${ENABLE_REGISTRATION:-false}
+      - URL_PREVIEW_ENABLED=${URL_PREVIEW_ENABLED:-true}
+      - ELEMENT_JITSI_DOMAIN=${ELEMENT_JITSI_DOMAIN:-meet.jit.si}
     networks:
       - voice-stack-network
     ports:
-      - "${ELEMENT_PORT:-8080}:80"
+      - "127.0.0.1:${ELEMENT_PORT:-8080}:80"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
       interval: 30s
@@ -133,7 +139,7 @@ services:
     networks:
       - voice-stack-network
     ports:
-      - "${SYNAPSE_ADMIN_PORT:-8082}:80"
+      - "127.0.0.1:${SYNAPSE_ADMIN_PORT:-8082}:80"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
       interval: 30s
@@ -152,15 +158,18 @@ services:
     image: nginx:alpine
     container_name: voice-stack-well-known
     restart: unless-stopped
+    environment:
+      - SYNAPSE_SERVER_NAME=${SYNAPSE_SERVER_NAME:?SYNAPSE_SERVER_NAME is required}
+      - SYNAPSE_PORT=${SYNAPSE_PORT:-8008}
     networks:
       - voice-stack-network
     ports:
-      - "${WELL_KNOWN_PORT:-8090}:80"
+      - "127.0.0.1:${WELL_KNOWN_PORT:-8090}:80"
     command: >
       sh -c "
         mkdir -p /usr/share/nginx/html/.well-known/matrix &&
-        echo '{\"m.server\": \"matrix.byte-box.org:8008\"}' > /usr/share/nginx/html/.well-known/matrix/server &&
-        echo '{\"m.homeserver\": {\"base_url\": \"http://localhost:8008\"}}' > /usr/share/nginx/html/.well-known/matrix/client &&
+        echo '{\"m.server\": \"$${SYNAPSE_SERVER_NAME}:443\"}' > /usr/share/nginx/html/.well-known/matrix/server &&
+        echo '{\"m.homeserver\": {\"base_url\": \"https://$${SYNAPSE_SERVER_NAME}\"}}' > /usr/share/nginx/html/.well-known/matrix/client &&
         nginx -g 'daemon off;'
       "
     healthcheck:

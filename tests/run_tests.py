@@ -157,10 +157,14 @@ class TestRunner:
         """Run a pytest test suite and parse results"""
         suite_name = Path(test_file).stem
         
+        # Create temporary file for pytest report
+        temp_dir = tempfile.gettempdir()
+        report_file = os.path.join(temp_dir, f'pytest-report-{suite_name}-{int(time.time())}.json')
+        
         cmd = [
             sys.executable, '-m', 'pytest',
             str(self.test_dir / test_file),
-            '--json-report', '--json-report-file=/tmp/pytest-report.json',
+            '--json-report', f'--json-report-file={report_file}',
             '--tb=short',
             '-v'
         ]
@@ -191,12 +195,19 @@ class TestRunner:
             duration = time.time() - start_time
             
             # Parse JSON report if available
-            json_report_file = Path('/tmp/pytest-report.json')
+            json_report_file = Path(report_file)
             if json_report_file.exists():
-                with open(json_report_file, 'r') as f:
-                    report_data = json.load(f)
-                
-                return self._parse_pytest_json_report(suite_name, report_data, duration)
+                try:
+                    with open(json_report_file, 'r') as f:
+                        report_data = json.load(f)
+                    
+                    # Clean up temp file
+                    json_report_file.unlink()
+                    return self._parse_pytest_json_report(suite_name, report_data, duration)
+                except Exception as e:
+                    print(f"Warning: Could not parse JSON report: {e}")
+                    # Fallback to parsing stdout
+                    return self._parse_pytest_output(suite_name, result, duration)
             else:
                 # Fallback to parsing stdout
                 return self._parse_pytest_output(suite_name, result, duration)

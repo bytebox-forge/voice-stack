@@ -10,14 +10,31 @@ A production-ready, security-hardened Matrix server stack optimized for Portaine
 - Domain name with SSL certificates
 - At least 2GB RAM and 10GB storage
 
+### Validate Setup (Recommended)
+
+Before deployment, run the validation script to check for common issues:
+
+```bash
+# Python 3.6+
+python3 validate-setup.py
+
+# Or on Windows
+python validate-setup.py
+```
+
+This will check Docker setup, file presence, environment variables, and port availability.
+
 ### Portainer Deployment
+
+**📖 See [PORTAINER-SETUP.md](PORTAINER-SETUP.md) for detailed Portainer deployment guide.**
+
+Quick Portainer steps:
 
 1. **Create volumes first** (required for external volumes):
    ```bash
    docker volume create voice-stack_postgres_data
    docker volume create voice-stack_synapse_data
    docker volume create voice-stack_media_store
-   docker volume create voice-stack_element_data
    docker volume create voice-stack_coturn_data
    ```
 
@@ -28,9 +45,42 @@ A production-ready, security-hardened Matrix server stack optimized for Portaine
    - Set environment variables (see below)
    - Deploy
 
-### Environment Variables (Required)
+### Command Line Deployment (Alternative)
 
-Set these in Portainer's environment variables section:
+For users preferring command line deployment:
+
+1. **Validate setup**:
+   ```bash
+   python3 validate-setup.py
+   ```
+
+2. **Copy and configure environment**:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your domain and secrets
+   ```
+
+3. **Create volumes**:
+   ```bash
+   # Linux/macOS
+   ./create-volumes.sh
+   
+   # Windows PowerShell  
+   .\create-volumes.ps1
+   ```
+
+4. **Deploy**:
+   ```bash
+   # Linux/macOS
+   ./deploy.sh start
+   
+   # Windows PowerShell
+   .\deploy.ps1 start
+   ```
+
+## 📋 Environment Variables (Required)
+
+Set these in Portainer's environment variables section or in your `.env` file:
 
 ```bash
 SYNAPSE_SERVER_NAME=matrix.yourdomain.com
@@ -62,12 +112,12 @@ Configure your external reverse proxy to route:
 1. **Create admin user**:
    ```bash
    # SSH into your server
-   ./scripts/register-admin.sh
+   ./create_admin_working.sh
    ```
 
 2. **Health check**:
    ```bash
-   ./scripts/healthcheck.sh
+   ./deploy.sh health
    ```
 
 3. **Access services**:
@@ -125,24 +175,24 @@ Configure your external reverse proxy to route:
 
 **Create Backup**:
 ```bash
-./scripts/backup.sh
+./backup-voice-stack.sh
 ```
 
 **Restore from Backup**:
 ```bash
-./scripts/restore.sh backup_manifest_YYYYMMDD_HHMMSS.txt
+./restore-voice-stack.sh backup_manifest_YYYYMMDD_HHMMSS.txt
 ```
 
 **Automated Backups** (add to cron):
 ```bash
-0 2 * * * cd /path/to/voice-stack && ./scripts/backup.sh
+0 2 * * * cd /path/to/voice-stack && ./backup-voice-stack.sh
 ```
 
 ### Monitoring
 
 **Health Check**:
 ```bash
-./scripts/healthcheck.sh
+./deploy.sh health
 ```
 
 **View Logs**:
@@ -158,7 +208,7 @@ docker compose logs -f synapse
 
 **Register Admin**:
 ```bash
-./scripts/register-admin.sh
+./create_admin_working.sh
 ```
 
 **Manage Users**:
@@ -208,19 +258,18 @@ docker compose logs -f synapse
 voice-stack/
 ├── docker-compose.yml          # Main Portainer-optimized stack
 ├── .env.example               # Environment configuration template
-├── scripts/                   # Operational scripts
-│   ├── bootstrap.sh          # Initial setup and validation
-│   ├── healthcheck.sh        # Service health verification  
-│   ├── register-admin.sh     # Admin user creation
-│   ├── backup.sh            # Database and media backup
-│   └── restore.sh           # Backup restoration
-├── config/                   # Configuration templates
-│   ├── nginx/               # Reverse proxy examples
-│   ├── synapse/            # Synapse configuration  
-│   └── well-known/         # Matrix discovery files
-└── docs/                   # Comprehensive documentation
-    ├── README.md          # This file
-    └── [various guides]   # Specialized guides
+├── deploy.sh                  # Deployment management script
+├── create_admin_working.sh    # Admin user creation
+├── backup-voice-stack.sh      # Database and media backup
+├── restore-voice-stack.sh     # Backup restoration
+├── voice_stack_tests.sh       # Test suite runner
+├── config/                    # Configuration templates
+│   ├── nginx/                # Reverse proxy examples
+│   ├── synapse/             # Synapse configuration  
+│   └── well-known/          # Matrix discovery files
+└── docs/                    # Comprehensive documentation
+    ├── README.md           # This file
+    └── [various guides]    # Specialized guides
 ```
 
 ## 🔄 Migration
@@ -261,7 +310,7 @@ voice-stack/
 
 ```bash
 # Collect all logs for support
-./scripts/healthcheck.sh > healthcheck.log 2>&1
+./deploy.sh health > healthcheck.log 2>&1
 docker compose logs > docker.log 2>&1
 ```
 

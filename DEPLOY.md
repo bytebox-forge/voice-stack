@@ -2,7 +2,8 @@
 
 ## Prerequisites
 - Docker and Portainer running
-- Your domain (matrix.byte-box.org) DNS configured
+- Your domain DNS configured
+- SSL certificates ready for your domain
 
 ## Deployment Steps
 
@@ -16,7 +17,6 @@ Or manually:
 docker volume create voice-stack_postgres_data
 docker volume create voice-stack_synapse_data
 docker volume create voice-stack_media_store
-docker volume create voice-stack_element_data  
 docker volume create voice-stack_coturn_data
 ```
 
@@ -27,10 +27,10 @@ docker volume create voice-stack_coturn_data
 3. **Copy** the entire `docker-compose.yml` content
 4. **Set Environment Variables**:
    ```
-   SYNAPSE_SERVER_NAME=matrix.byte-box.org
+   SYNAPSE_SERVER_NAME=matrix.yourdomain.com
    POSTGRES_PASSWORD=your_strong_password_here
-   REGISTRATION_SHARED_SECRET=ByteBox_Matrix_2025_SuperSecretKey_Family
-   COTURN_STATIC_AUTH_SECRET=ByteBox_TURN_2025_MediaRelaySecret_Secure
+   REGISTRATION_SHARED_SECRET=your_registration_secret_here
+   COTURN_STATIC_AUTH_SECRET=your_turn_secret_here
    ```
 5. **Deploy Stack**
 
@@ -39,14 +39,14 @@ After deployment is complete, run the command from `create-admin-user.txt`
 
 ### 4. Configure Reverse Proxy
 Point your reverse proxy to:
-- Matrix Server: `http://server:8008` → `https://matrix.byte-box.org`
-- Element Web: `http://server:8080` → `https://chat.byte-box.org`
-- Well-known: `http://server:8090/.well-known/matrix/*` → `https://matrix.byte-box.org/.well-known/matrix/*`
+- Matrix Server: `http://server:8008` → `https://matrix.yourdomain.com`
+- Element Web: `http://server:8080` → `https://chat.yourdomain.com`
+- Well-known: `http://server:8090/.well-known/matrix/*` → `https://matrix.yourdomain.com/.well-known/matrix/*`
 
 ## Access Points
-- **Element Web**: https://chat.byte-box.org
+- **Element Web**: https://chat.yourdomain.com
 - **Synapse Admin**: `localhost:8082` (internal only)
-- **Matrix API**: https://matrix.byte-box.org
+- **Matrix API**: https://matrix.yourdomain.com
 
 ## Health Check
 ```bash

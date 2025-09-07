@@ -31,16 +31,19 @@ if [ ! -f .env ]; then
 fi
 
 # Check if docker-compose is available
-if ! command -v docker-compose >/dev/null 2>&1 && [ ! -f /tmp/docker-compose ]; then
-    error "docker-compose not found. Please install docker-compose or ensure /tmp/docker-compose exists."
+DOCKER_COMPOSE_CMD=""
+if command -v "docker" >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD="docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+elif [ -f /tmp/docker-compose ]; then
+    DOCKER_COMPOSE_CMD="/tmp/docker-compose"
+else
+    error "Neither 'docker compose' nor 'docker-compose' found. Please install Docker Compose."
     exit 1
 fi
 
-# Use either system docker-compose or our downloaded version
-DOCKER_COMPOSE_CMD="docker-compose"
-if [ -f /tmp/docker-compose ]; then
-    DOCKER_COMPOSE_CMD="/tmp/docker-compose"
-fi
+log "Using Docker Compose command: $DOCKER_COMPOSE_CMD"
 
 # Function to run docker-compose with environment
 run_compose() {
@@ -48,7 +51,17 @@ run_compose() {
     source .env
     set +a
     
-    echo 'code1337' | sudo -E -S "$DOCKER_COMPOSE_CMD" "$@"
+    # Check if user has docker permissions
+    if ! docker ps >/dev/null 2>&1; then
+        error "Cannot access Docker. Please ensure:"
+        echo "  1. Docker is running"
+        echo "  2. Current user is in 'docker' group (Linux/macOS)"
+        echo "  3. Docker Desktop is running (Windows)"
+        echo "  4. Run as Administrator if needed (Windows)"
+        exit 1
+    fi
+    
+    "$DOCKER_COMPOSE_CMD" "$@"
 }
 
 case "${1:-start}" in
@@ -95,7 +108,7 @@ case "${1:-start}" in
         ;;
     health)
         log "Checking health status..."
-        echo 'code1337' | sudo -S docker ps --filter "name=voice-stack" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+        docker ps --filter "name=voice-stack" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
         ;;
     *)
         echo "Usage: $0 {start|stop|restart|logs [service]|status|health|clean|destroy}"

@@ -272,16 +272,43 @@ LOG_LEVEL=INFO
         os.chdir(self.test_dir)
         
         # Determine docker-compose command
-        docker_compose_cmd = 'docker-compose'
+        docker_compose_cmd = None
         if Path('/tmp/docker-compose').exists():
             docker_compose_cmd = '/tmp/docker-compose'
+        else:
+            # Try docker compose (v2) first, then docker-compose (v1)
+            try:
+                subprocess.run(['docker', 'compose', 'version'], 
+                             capture_output=True, timeout=5, check=True)
+                docker_compose_cmd = 'docker compose'
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+                try:
+                    subprocess.run(['docker-compose', '--version'], 
+                                 capture_output=True, timeout=5, check=True)
+                    docker_compose_cmd = 'docker-compose'
+                except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+                    return {
+                        'started': False,
+                        'error': 'Neither docker compose nor docker-compose found'
+                    }
+        
+        if not docker_compose_cmd:
+            return {
+                'started': False,
+                'error': 'No suitable docker compose command found'
+            }
         
         try:
             # Start services
             print("Starting services...")
-            result = subprocess.run([
-                docker_compose_cmd, 'up', '-d'
-            ], capture_output=True, text=True, timeout=timeout, cwd=self.test_dir)
+            if docker_compose_cmd == 'docker compose':
+                result = subprocess.run([
+                    'docker', 'compose', 'up', '-d'
+                ], capture_output=True, text=True, timeout=timeout, cwd=self.test_dir)
+            else:
+                result = subprocess.run([
+                    docker_compose_cmd, 'up', '-d'
+                ], capture_output=True, text=True, timeout=timeout, cwd=self.test_dir)
             
             if result.returncode != 0:
                 return {
@@ -291,9 +318,14 @@ LOG_LEVEL=INFO
                 }
             
             # Get list of started containers
-            container_result = subprocess.run([
-                docker_compose_cmd, 'ps', '--format', 'json'
-            ], capture_output=True, text=True, timeout=30, cwd=self.test_dir)
+            if docker_compose_cmd == 'docker compose':
+                container_result = subprocess.run([
+                    'docker', 'compose', 'ps', '--format', 'json'
+                ], capture_output=True, text=True, timeout=30, cwd=self.test_dir)
+            else:
+                container_result = subprocess.run([
+                    docker_compose_cmd, 'ps', '--format', 'json'
+                ], capture_output=True, text=True, timeout=30, cwd=self.test_dir)
             
             containers = []
             if container_result.returncode == 0:
